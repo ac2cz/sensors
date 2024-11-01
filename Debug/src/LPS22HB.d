@@ -1,3 +1,2 @@
-src/LPS22HB.o: ../src/LPS22HB.c \
- /home/g0kla/Desktop/workspace/sensors/inc/LPS22HB.h
-/home/g0kla/Desktop/workspace/sensors/inc/LPS22HB.h:
+src/LPS22HB.o: ../src/LPS22HB.c ../inc/LPS22HB.h
+../inc/LPS22HB.h:
