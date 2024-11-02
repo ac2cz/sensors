@@ -7,18 +7,21 @@ C_SRCS += \
 ../src/AD.c \
 ../src/LPS22HB.c \
 ../src/SHTC3.c \
+../src/dfrobot_gas.c \
 ../src/sensors.c 
 
 C_DEPS += \
 ./src/AD.d \
 ./src/LPS22HB.d \
 ./src/SHTC3.d \
+./src/dfrobot_gas.d \
 ./src/sensors.d 
 
 OBJS += \
 ./src/AD.o \
 ./src/LPS22HB.o \
 ./src/SHTC3.o \
+./src/dfrobot_gas.o \
 ./src/sensors.o 
 
 
@@ -34,7 +37,7 @@ src/%.o: ../src/%.c src/subdir.mk
 clean: clean-src
 
 clean-src:
-	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/sensors.d ./src/sensors.o
+	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o
 
 .PHONY: clean-src
 
