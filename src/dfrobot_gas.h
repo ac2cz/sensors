@@ -34,6 +34,36 @@ typedef struct
   uint8_t check;
 } sProtocol_t;
 
+/**
+ * @enum eSwitch_t
+ * @brief Whether to enable ALA alarm function
+ */
+typedef enum
+{
+  ON = 0x01,
+  OFF = 0x00
+} eSwitch_t;
+
+/**
+ * @enum eType_t
+ * @brief Gas Type
+ */
+typedef enum
+{
+  O2 = 0x05,
+  CO = 0x04,
+  H2S = 0x03,
+  NO2 = 0x2C,
+  O3 = 0x2A,
+  CL2 = 0x31,
+  NH3 = 0x02,
+  H2 = 0x06,
+  HCL = 0X2E,
+  SO2 = 0X2B,
+  HF = 0x33,
+  _PH3 = 0x45
+} eType_t;
+
 int dfr_gas_read(short *temp, short *conc);
 
 #endif /* DFROBOT_GAS_H_ */
