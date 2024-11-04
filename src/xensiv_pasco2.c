@@ -5,6 +5,7 @@
  *      Author: g0kla
  *
  *  Ported from xensiv_pasco2.c to use lgpio library
+ *  https://github.com/Infineon/sensor-xensiv-pasco2/blob/master/xensiv_pasco2.c
  *
  */
 
@@ -33,7 +34,9 @@
  **************************************************************************************************/
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
+#include <arpa/inet.h>
 #include <lgpio.h>
 #include "xensiv_pasco2.h"
 
@@ -53,7 +56,34 @@
 #define XENSIV_PASCO2_UART_ACK                  (0x06U)
 #define XENSIV_PASCO2_UART_NAK                  (0x15U)
 
+int32_t xensiv_pasco2_cmd(int dev, xensiv_pasco2_cmd_t cmd) {
+    return lgI2cWriteI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_SENS_RST, (char * )&cmd, 1U);
+}
 
+int32_t xensiv_pasco2_start_single_mode(int dev) {
+    xensiv_pasco2_measurement_config_t meas_config;
+    /* Get measurement Config */
+    int32_t res = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_CFG, (char *)&(meas_config.u), 1U);
+
+    if (XENSIV_PASCO2_OK == res)
+    {
+        if (meas_config.b.op_mode != XENSIV_PASCO2_OP_MODE_IDLE)
+        {
+            meas_config.b.op_mode = XENSIV_PASCO2_OP_MODE_IDLE;
+            /* Set measurement congfig */
+            res = lgI2cWriteI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_CFG, (char *)&(meas_config.u), 1U);
+        }
+    }
+
+    if (XENSIV_PASCO2_OK == res)
+    {
+        meas_config.b.op_mode = XENSIV_PASCO2_OP_MODE_SINGLE;
+        meas_config.b.boc_cfg = XENSIV_PASCO2_BOC_CFG_AUTOMATIC;
+        res = lgI2cWriteI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_CFG, (char *)&(meas_config.u), 1U);
+    }
+
+    return res;
+}
 
 int xensiv_pasco2_init() {
 	int xensiv_pasco2_fd = -1;
@@ -70,6 +100,37 @@ int xensiv_pasco2_init() {
 	    }
 	    if ((XENSIV_PASCO2_OK == res) && (XENSIV_PASCO2_COMM_TEST_VAL == data)) {
 	    	printf("CO2 Sensor OK\n");
+	    	/* Soft reset */
+	    	res = xensiv_pasco2_cmd(xensiv_pasco2_fd, XENSIV_PASCO2_CMD_SOFT_RESET);
+	    	lguSleep(XENSIV_PASCO2_SOFT_RESET_DELAY_MS/1000);
+
+	    	if (XENSIV_PASCO2_OK == res) {
+	    		/* Read the sensor status and verify if the sensor is ready */
+	    		res = lgI2cReadI2CBlockData(xensiv_pasco2_fd, (uint8_t)XENSIV_PASCO2_REG_SENS_STS, (char *)&data, 1U);
+	    	}
+	    	if (XENSIV_PASCO2_OK == res) {
+	    		if ((data & XENSIV_PASCO2_REG_SENS_STS_ICCER_MSK) != 0U) {
+	    			res = XENSIV_PASCO2_ICCERR;
+	    		}
+	    		else if ((data & XENSIV_PASCO2_REG_SENS_STS_ORVS_MSK) != 0U) {
+	    			res = XENSIV_PASCO2_ORVS;
+	    		}
+	    		else if ((data & XENSIV_PASCO2_REG_SENS_STS_ORTMP_MSK) != 0U) {
+	    			res = XENSIV_PASCO2_ORTMP;
+	    		}
+	    		else if ((data & XENSIV_PASCO2_REG_SENS_STS_SEN_RDY_MSK) == 0U) {
+	    			res = XENSIV_PASCO2_ERR_NOT_READY;
+	    		}
+	    		else {
+	    			res = XENSIV_PASCO2_OK;
+	    		}
+	    	}
+
+	    	/* TODO - - SET THE PRESSURE REGISTER HERE */
+
+	    	if (XENSIV_PASCO2_OK == res) {
+	    		 res = xensiv_pasco2_start_single_mode(xensiv_pasco2_fd);
+	    	 }
 	    } else {
 	    	printf("CO2 Sensor FAIL\n");
 	    	res = XENSIV_PASCO2_ERR_COMM;
@@ -77,4 +138,44 @@ int xensiv_pasco2_init() {
 
 	    lgI2cClose(xensiv_pasco2_fd);
 	    return res;
+}
+
+//int32_t xensiv_pasco2_set_pressure_compensation(int dev, uint16_t val) {
+//
+//    val = (uint16_t)htons(val);
+//    return lgI2cWriteI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_PRESS_REF_H, (char *)&val, 2U);
+//}
+//
+int32_t xensiv_pasco2_get_result(int dev, uint16_t * val) {
+    xensiv_pasco2_meas_status_t meas_status;
+    /* Get measurement status */
+    int32_t res = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_STS, (char *)&(meas_status), 1U);
+
+    if (XENSIV_PASCO2_OK == res) {
+        if (meas_status.b.drdy != 0U) {
+            res = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_CO2PPM_H, (char *)val, 2U);
+            *val = htons(*val);
+        }
+        else {
+            res =  XENSIV_PASCO2_READ_NRDY;
+        }
+    }
+
+    return res;
+}
+
+int xensiv_pasco2_read(uint16_t press_ref, uint16_t * co2_ppm_val) {
+	int xensiv_pasco2_fd = -1;
+	xensiv_pasco2_fd = lgI2cOpen(1, XENSIV_PASCO2_I2C_ADDR, 0);
+	if (xensiv_pasco2_fd < 0)
+		return EXIT_FAILURE;
+	int32_t res = XENSIV_PASCO2_OK;
+		//if (press_ref != 0)
+		//	res = xensiv_pasco2_set_pressure_compensation(xensiv_pasco2_fd, press_ref);
+	if (XENSIV_PASCO2_OK == res) {
+		res = xensiv_pasco2_get_result(xensiv_pasco2_fd, co2_ppm_val);
+	}
+	lgI2cClose(xensiv_pasco2_fd);
+
+    return res;
 }

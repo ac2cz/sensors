@@ -213,5 +213,6 @@ typedef union
 } xensiv_pasco2_meas_status_t;
 
 int xensiv_pasco2_init();
+int xensiv_pasco2_read(uint16_t press_ref, uint16_t * co2_ppm_val);
 
 #endif /* XENSIV_PASCO2_H_ */

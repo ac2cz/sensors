@@ -71,6 +71,10 @@ int main(void) {
 
 		if (xensiv_pasco2_init() == EXIT_FAILURE) {
 			printf("Could not open CO2 gas sensor\n");
+		} else {
+			uint16_t co2_ppm_val;
+			xensiv_pasco2_read(0, &co2_ppm_val);
+			printf("CO2: %d ppm\n",co2_ppm_val);
 		}
 
 		sleep(60);
