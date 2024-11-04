@@ -57,7 +57,7 @@
 #define XENSIV_PASCO2_UART_NAK                  (0x15U)
 
 int32_t xensiv_pasco2_cmd(int dev, xensiv_pasco2_cmd_t cmd) {
-    return lgI2cWriteI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_SENS_RST, (char * )&cmd, 1U);
+    return lgI2cWriteByteData(dev, (uint8_t)XENSIV_PASCO2_REG_SENS_RST, cmd);
 }
 
 int32_t xensiv_pasco2_start_single_mode(int dev) {
