@@ -99,16 +99,17 @@ int xensiv_pasco2_init() {
 	        lgI2cReadI2CBlockData(xensiv_pasco2_fd, (uint8_t)XENSIV_PASCO2_REG_SCRATCH_PAD, (char *)&data, 1U);
 	    }
 	    if ((XENSIV_PASCO2_OK == res) && (XENSIV_PASCO2_COMM_TEST_VAL == data)) {
-	    	printf("CO2 Sensor OK\n");
+	    	printf("CO2 Sensor Scratch Read OK\n");
 	    	/* Soft reset */
 	    	res = xensiv_pasco2_cmd(xensiv_pasco2_fd, XENSIV_PASCO2_CMD_SOFT_RESET);
-	    	lguSleep(XENSIV_PASCO2_SOFT_RESET_DELAY_MS/1000);
+	    	lguSleep(XENSIV_PASCO2_SOFT_RESET_DELAY_MS/1000.0);
 
 	    	if (XENSIV_PASCO2_OK == res) {
 	    		/* Read the sensor status and verify if the sensor is ready */
 	    		res = lgI2cReadI2CBlockData(xensiv_pasco2_fd, (uint8_t)XENSIV_PASCO2_REG_SENS_STS, (char *)&data, 1U);
 	    	}
 	    	if (XENSIV_PASCO2_OK == res) {
+	    		printf("CO2 Sensor Status Read OK\n");
 	    		if ((data & XENSIV_PASCO2_REG_SENS_STS_ICCER_MSK) != 0U) {
 	    			res = XENSIV_PASCO2_ICCERR;
 	    		}
@@ -126,9 +127,8 @@ int xensiv_pasco2_init() {
 	    		}
 	    	}
 
-	    	/* TODO - - SET THE PRESSURE REGISTER HERE */
-
 	    	if (XENSIV_PASCO2_OK == res) {
+	    		printf("CO2 Sensor Start Single Mode\n");
 	    		 res = xensiv_pasco2_start_single_mode(xensiv_pasco2_fd);
 	    	 }
 	    } else {

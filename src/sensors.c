@@ -69,8 +69,9 @@ int main(void) {
 			//	debug_print("Temperature = %6.2f°C , Humidity = %6.2f%% \r\n", gas_temp_value, CONC_Value);
 		}
 
-		if (xensiv_pasco2_init() == EXIT_FAILURE) {
-			printf("Could not open CO2 gas sensor\n");
+		int res = xensiv_pasco2_init();
+		if (res != EXIT_SUCCESS) {
+			printf("Could not open CO2 gas sensor: %d\n",res);
 		} else {
 			uint16_t co2_ppm_val;
 			xensiv_pasco2_read(0, &co2_ppm_val);
