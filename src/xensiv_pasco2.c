@@ -105,6 +105,7 @@ int xensiv_pasco2_init() {
 	    	lguSleep(XENSIV_PASCO2_SOFT_RESET_DELAY_MS/1000.0);
 
 	    	if (XENSIV_PASCO2_OK == res) {
+	    		printf("CO2 Sensor Reset OK\n");
 	    		/* Read the sensor status and verify if the sensor is ready */
 	    		res = lgI2cReadI2CBlockData(xensiv_pasco2_fd, (uint8_t)XENSIV_PASCO2_REG_SENS_STS, (char *)&data, 1U);
 	    	}
