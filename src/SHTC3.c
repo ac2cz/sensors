@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <lgpio.h>
 #include <stdio.h>
 #include <math.h>
@@ -84,6 +85,8 @@ int SHTC3_read(short *temp, short *humidity) {
 	//printf("\n SHTC3 Sensor Test Program ...\n");
 
 	shtc3_fd = lgI2cOpen(1, SHTC3_I2C_ADDRESS, 0);
+	if (shtc3_fd < 0)
+		return EXIT_FAILURE;
 	SHTC3_Read_DATA();
 	*temp = TH_DATA;
 	*humidity = RH_DATA;
@@ -92,5 +95,5 @@ int SHTC3_read(short *temp, short *humidity) {
 	//RH_Value = 100 * (float)RH_DATA / 65536.0f;         // Calculate humidity value
 	//debug_print("Temperature = %6.2f°C , Humidity = %6.2f%% \r\n", TH_Value, RH_Value);
 	lgI2cClose(shtc3_fd);
-	return 0;
+	return EXIT_SUCCESS;
 }

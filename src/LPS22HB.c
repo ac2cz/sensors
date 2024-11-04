@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <lgpio.h>
 #include <stdio.h>
 #include <math.h>
@@ -38,10 +39,12 @@ void LPS22HB_START_ONESHOT() {
 
 unsigned char LPS22HB_INIT() {
     lps22_fd = lgI2cOpen(1,LPS22HB_I2C_ADDRESS,0);
-    if(LPS22HB_readByte(LPS_WHO_AM_I)!=LPS_ID) return 0;    //Check device ID
+    if (lps22_fd < 0)
+    	return EXIT_FAILURE;
+    if(LPS22HB_readByte(LPS_WHO_AM_I)!=LPS_ID) return EXIT_FAILURE;    //Check device ID
     LPS22HB_RESET();                                    //Wait for reset to complete
     LPS22HB_writeByte(LPS_CTRL_REG1 ,   0x02);              //Low-pass filter disabled , output registers not updated until MSB and LSB have been read , Enable Block Data Update , Set Output Data Rate to 0
-    return 1;
+    return EXIT_SUCCESS;
 }
 
 int LPS22HB_read(int *pressure, short *temperature) {
@@ -50,9 +53,9 @@ int LPS22HB_read(int *pressure, short *temperature) {
 	unsigned char u8Buf[3];
 
 	//printf("\nPressure Sensor Test Program ...\n");
-	if(!LPS22HB_INIT()) {
+	if(LPS22HB_INIT() != EXIT_SUCCESS) {
 		//debug_print("Pressure Sensor Error\n");
-		return 0;
+		return EXIT_FAILURE;
 	}
 	//    printf("\nPressure Sensor OK\n");
 	LPS22HB_START_ONESHOT();        //Trigger one shot data acquisition
@@ -74,5 +77,5 @@ int LPS22HB_read(int *pressure, short *temperature) {
 
 	//debug_print("Pressure = %6.2f hPa , Temperature = %6.2f °C\r\n", PRESS_DATA, TEMP_DATA);
 	lgI2cClose(lps22_fd);
-	return 0;
+	return EXIT_SUCCESS;
 }

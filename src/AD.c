@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <lgpio.h>
 #include <stdio.h>
 #include <math.h>
@@ -61,26 +62,30 @@ unsigned int ADS1015_SINGLE_READ(unsigned int channel)  {          //Read single
     return data;
 }
 
-int adc_read() {
+int adc_read(int channel, int *AIN3_DATA) {
 //	int  AIN0_DATA,AIN1_DATA,AIN2_DATA,AIN3_DATA;
-	int  AIN3_DATA;
+
+	if (channel <0 || channel > 3)
+		return EXIT_FAILURE;
     fd=lgI2cOpen(1,ADS_I2C_ADDRESS,0);
+    if (fd < 0)
+    	return EXIT_FAILURE;
 	//printf("\nADS1015 Test Program ...\n");
     if(ADS1015_INIT()!=0x8000) {
     	printf("\nADS1015 Error\n");
-		return 0;
+		return EXIT_FAILURE;
 	}
 	lguSleep(0.01);
 	//printf("\nADS1015 OK\n");
 //        AIN0_DATA=ADS1015_SINGLE_READ(0);
 //       AIN1_DATA=ADS1015_SINGLE_READ(1);
 //        AIN2_DATA=ADS1015_SINGLE_READ(2);
-        AIN3_DATA=ADS1015_SINGLE_READ(3);
+        AIN3_DATA=ADS1015_SINGLE_READ(channel);
         /* 16 bit ADC, but can read +ve and -ve.  If we assume positive then value is scaled by FullScale/32768.  When Full scale is 4096 this = 0.125 */
 //        debug_print("\nAIN0 = %d(%0.2fmv) ,AIN1 = %d(%0.2fmv) ,AIN2 = %d(%0.2fmv) AIN3 = %d(%0.2fmv)\n\r", AIN0_DATA,(float)AIN0_DATA*0.125, AIN1_DATA,(float)AIN1_DATA*0.125,AIN2_DATA,(float)AIN2_DATA*0.125,AIN3_DATA,(float)AIN3_DATA*0.125);
  //       debug_print("Battery V = %d(%0.2fmv)\n\r",AIN3_DATA,(float)AIN3_DATA*0.125);
         lguSleep(0.1);
 
     lgI2cClose(fd);
-    return AIN3_DATA;
+    return EXIT_SUCCESS;
 }

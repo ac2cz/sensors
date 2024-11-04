@@ -4,6 +4,17 @@
  *  Created on: Nov 1, 2024
  *      Author: g0kla
  */
+/*
+ * Portions of this code ported from from:
+  * @file  DFRobot_MultiGasSensor.cpp
+  * @brief This is function implementation .cpp file of a library for the sensor that can detect gas concentration in the air.
+  * @copyright   Copyright (c) 2010 DFRobot Co.Ltd (http://www.dfrobot.com)
+  * @license     The MIT License (MIT)
+  * @author      PengKaixing(kaixing.peng@dfrobot.com)
+  * @version     V2.0.0
+  * @date        2021-09-26
+  * @url         https://github.com/DFRobot/DFRobot_MultiGasSensor
+*/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,8 +24,8 @@
 #include "dfrobot_gas.h"
 
 //unsigned short TH_DATA, CONC_DATA;
-int dfr_gas_fd;
-int _tempswitch;
+int dfr_gas_fd = -1;
+int _tempswitch = 0;
 
 int dfr_write_command(unsigned short cmd) {
   char buf[] = {(cmd >> 8), cmd};
@@ -71,7 +82,7 @@ float readGasConcentrationPPM(void) {
   lguSleep(0.02);
   lgI2cReadI2CBlockData(dfr_gas_fd,0, (char *)recvbuf, 9);
   float Con=0.0;
-  float _temp;
+  float _temp = 0.0;
   if(FucCheckSum(recvbuf,8) == recvbuf[8])
   {
     Con=((recvbuf[2]<<8)+recvbuf[3])*1.0;
@@ -217,29 +228,17 @@ float readGasConcentrationPPM(void) {
   return Con;
 }
 
-void dfr_gas_read_data() {
-
-  char buf[3];
-  dfr_write_command(CMD_GET_TEMP); // Read temperature first
-  lguSleep(0.02);
-  lgI2cReadDevice(dfr_gas_fd, buf, 3);
-
-  dfr_write_command(CMD_GET_GAS_CONCENTRATION); // Get gas concentration
-  lguSleep(0.02);
-  lgI2cReadDevice(dfr_gas_fd, buf, 3);
-
-}
-
 int dfr_gas_read(short *temp, short *conc) {
 	//printf("\n SHTC3 Sensor Test Program ...\n");
 
 	dfr_gas_fd = lgI2cOpen(1, DFR_GAS_I2C_ADDR, 0);
-	//dfr_gas_read_data();
+	if (dfr_gas_fd < 0)
+		return EXIT_FAILURE;
 	float c = readGasConcentrationPPM();
 	float t = readTempC();
 //	*temp = TH_DATA;
 //	*conc = CONC_DATA;
-	printf("Temperature = %6.2f°C , O2 Conc = %6.2f % \n", t, c);
+	printf("Temperature = %6.2f°C , O2 Conc = %6.2f%% \n", t, c);
 	lgI2cClose(dfr_gas_fd);
-	return 0;
+	return EXIT_SUCCESS;
 }

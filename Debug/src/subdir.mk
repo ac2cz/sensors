@@ -8,21 +8,24 @@ C_SRCS += \
 ../src/LPS22HB.c \
 ../src/SHTC3.c \
 ../src/dfrobot_gas.c \
-../src/sensors.c 
+../src/sensors.c \
+../src/xensiv_pasco2.c 
 
 C_DEPS += \
 ./src/AD.d \
 ./src/LPS22HB.d \
 ./src/SHTC3.d \
 ./src/dfrobot_gas.d \
-./src/sensors.d 
+./src/sensors.d \
+./src/xensiv_pasco2.d 
 
 OBJS += \
 ./src/AD.o \
 ./src/LPS22HB.o \
 ./src/SHTC3.o \
 ./src/dfrobot_gas.o \
-./src/sensors.o 
+./src/sensors.o \
+./src/xensiv_pasco2.o 
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -37,7 +40,7 @@ src/%.o: ../src/%.c src/subdir.mk
 clean: clean-src
 
 clean-src:
-	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o
+	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
 
 .PHONY: clean-src
 
