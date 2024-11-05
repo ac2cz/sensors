@@ -77,11 +77,14 @@ int main(void) {
 
 		if (co2_status) {
 			uint16_t co2_ppm_val;
-			xensiv_pasco2_read(0, &co2_ppm_val);
-			printf("CO2: %d ppm\n",co2_ppm_val);
+			if (xensiv_pasco2_read(0, &co2_ppm_val) != XENSIV_PASCO2_READ_NRDY) {
+				printf("CO2: %d ppm\n",co2_ppm_val);
+			} else {
+				printf("CO2 Sensor not ready\n");
+			}
 		}
 
-		sleep(60);
+		sleep(10);
 	}
 
 	return EXIT_SUCCESS;
