@@ -80,7 +80,7 @@ int adc_read(int channel, int *AIN3_DATA) {
 //        AIN0_DATA=ADS1015_SINGLE_READ(0);
 //       AIN1_DATA=ADS1015_SINGLE_READ(1);
 //        AIN2_DATA=ADS1015_SINGLE_READ(2);
-        AIN3_DATA=ADS1015_SINGLE_READ(channel);
+        *AIN3_DATA = ADS1015_SINGLE_READ(channel);
         /* 16 bit ADC, but can read +ve and -ve.  If we assume positive then value is scaled by FullScale/32768.  When Full scale is 4096 this = 0.125 */
 //        debug_print("\nAIN0 = %d(%0.2fmv) ,AIN1 = %d(%0.2fmv) ,AIN2 = %d(%0.2fmv) AIN3 = %d(%0.2fmv)\n\r", AIN0_DATA,(float)AIN0_DATA*0.125, AIN1_DATA,(float)AIN1_DATA*0.125,AIN2_DATA,(float)AIN2_DATA*0.125,AIN3_DATA,(float)AIN3_DATA*0.125);
  //       debug_print("Battery V = %d(%0.2fmv)\n\r",AIN3_DATA,(float)AIN3_DATA*0.125);

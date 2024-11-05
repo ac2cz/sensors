@@ -25,12 +25,14 @@ static rttelemetry_t rttelemetry;
 int main(void) {
 	puts("Student On Orbit Sensor System telemetry capture");
 
-	int co2_status = true;
+	int co2_status = false;
 	int res = xensiv_pasco2_init();
-	if (res != EXIT_SUCCESS) {
-		co2_status = false;
+	if (res == EXIT_SUCCESS) {
+		co2_status = true;
+	} else {
 		printf("Could not open CO2 gas sensor: %d\n",res);
 	}
+
 	while(1) {
 		/* Read the PI sensors */
 		int val;
@@ -75,7 +77,9 @@ int main(void) {
 			//	debug_print("Temperature = %6.2f°C , Humidity = %6.2f%% \r\n", gas_temp_value, CONC_Value);
 		}
 
-		if (co2_status) {
+		if (co2_status == true) {
+			co2_status = 2;
+		} else if (co2_status == 2) {
 			uint16_t co2_ppm_val;
 			if (xensiv_pasco2_read(0, &co2_ppm_val) != XENSIV_PASCO2_READ_NRDY) {
 				printf("CO2: %d ppm\n",co2_ppm_val);
@@ -84,7 +88,7 @@ int main(void) {
 			}
 		}
 
-		sleep(10);
+		sleep(60);
 	}
 
 	return EXIT_SUCCESS;
