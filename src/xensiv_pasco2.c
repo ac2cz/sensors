@@ -63,12 +63,13 @@ int32_t xensiv_pasco2_cmd(int dev, xensiv_pasco2_cmd_t cmd) {
 int32_t xensiv_pasco2_start_single_mode(int dev) {
     xensiv_pasco2_measurement_config_t meas_config;
     /* Get measurement Config */
-    int32_t res = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_CFG, (char *)&(meas_config.u), 1U);
+    int32_t res = XENSIV_PASCO2_OK; 
+    int32_t count = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_CFG, (char *)&(meas_config.u), 1U);
 
-    if (XENSIV_PASCO2_OK == res)
-    {
-        if (meas_config.b.op_mode != XENSIV_PASCO2_OP_MODE_IDLE)
-        {
+    if (count == 1) {
+	   printf("CO2 Sensor read measurement reg\n");
+        if (meas_config.b.op_mode != XENSIV_PASCO2_OP_MODE_IDLE) {
+	   printf("CO2 Sensor not set to op mode idle\n");
             meas_config.b.op_mode = XENSIV_PASCO2_OP_MODE_IDLE;
             /* Set measurement congfig */
             res = lgI2cWriteI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_CFG, (char *)&(meas_config.u), 1U);
@@ -79,6 +80,7 @@ int32_t xensiv_pasco2_start_single_mode(int dev) {
     {
         meas_config.b.op_mode = XENSIV_PASCO2_OP_MODE_SINGLE;
         meas_config.b.boc_cfg = XENSIV_PASCO2_BOC_CFG_AUTOMATIC;
+	   printf("CO2 Sensor writing single mode\n");
         res = lgI2cWriteI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_CFG, (char *)&(meas_config.u), 1U);
     }
 
@@ -108,9 +110,9 @@ int xensiv_pasco2_init() {
 	    		printf("CO2 Sensor Reset OK\n");
 	    		/* Read the sensor status and verify if the sensor is ready */
 	    		res = lgI2cReadI2CBlockData(xensiv_pasco2_fd, (uint8_t)XENSIV_PASCO2_REG_SENS_STS, (char *)&data, 1U);
+                        printf("Status: %0x\n",data);
 	    	}
-	    	if (XENSIV_PASCO2_OK == res) {
-	    		printf("CO2 Sensor Status Read OK\n");
+	    	if (data != 0xC0) {
 	    		if ((data & XENSIV_PASCO2_REG_SENS_STS_ICCER_MSK) != 0U) {
 	    			res = XENSIV_PASCO2_ICCERR;
 	    		}
@@ -123,14 +125,15 @@ int xensiv_pasco2_init() {
 	    		else if ((data & XENSIV_PASCO2_REG_SENS_STS_SEN_RDY_MSK) == 0U) {
 	    			res = XENSIV_PASCO2_ERR_NOT_READY;
 	    		}
-	    		else {
-	    			res = XENSIV_PASCO2_OK;
-	    		}
-	    	}
+	 	} else {
+	            printf("CO2 Sensor Status Read OK\n");
+	        	res = XENSIV_PASCO2_OK;
+	        }
+	  
 
 	    	if (XENSIV_PASCO2_OK == res) {
 	    		printf("CO2 Sensor Start Single Mode\n");
-	    		 res = xensiv_pasco2_start_single_mode(xensiv_pasco2_fd);
+	    		res = xensiv_pasco2_start_single_mode(xensiv_pasco2_fd);
 	    	 }
 	    } else {
 	    	printf("CO2 Sensor FAIL\n");
@@ -149,12 +152,13 @@ int xensiv_pasco2_init() {
 //
 int32_t xensiv_pasco2_get_result(int dev, uint16_t * val) {
     xensiv_pasco2_meas_status_t meas_status;
+    int32_t res = EXIT_SUCCESS;
     /* Get measurement status */
-    int32_t res = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_STS, (char *)&(meas_status), 1U);
+    int32_t count = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_MEAS_STS, (char *)&(meas_status), 1U);
 
-    if (XENSIV_PASCO2_OK == res) {
+    if (count == 1) {
         if (meas_status.b.drdy != 0U) {
-            res = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_CO2PPM_H, (char *)val, 2U);
+            count = lgI2cReadI2CBlockData(dev, (uint8_t)XENSIV_PASCO2_REG_CO2PPM_H, (char *)val, 2U);
             *val = htons(*val);
         }
         else {
