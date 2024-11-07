@@ -42,7 +42,7 @@
 
 /* Variables */
 static rttelemetry_t rttelemetry;
-int PERIOD=60;
+int PERIOD=1;
 
 
 int main(void) {
@@ -64,19 +64,29 @@ int main(void) {
 			printf("Could not open ADC channel %d\n",ADC_BUS_V_CHAN);
 		} else {
 			rttelemetry.BatteryV = val;
-			printf("Battery V = %d(%0.2fmv)\n",rttelemetry.BatteryV,(float)rttelemetry.BatteryV*0.125);
+			printf("Battery V = %d(%0.2fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
 		}
-
-		rc = adc_read(ADC_O2_CHAN, &val);
-		if (rc != EXIT_SUCCESS) {
-			printf("Could not open ADC channel %d\n",ADC_O2_CHAN);
-		} else {
-			//					rttelemetry.BatteryV = val;
-			// y = -94.545x + 233.526
-			float volts = val * 0.125;
-			float o2_conc = -0.094545 * volts + 234.65;
-			printf("O2 Conc: %.2f%% %d(%0.2fmv)\n",o2_conc, val,(float)volts);
+int c=0;
+		float avg=0.0;
+		while (c < 12) {
+			rc = adc_read(ADC_O2_CHAN, &val);
+			if (rc != EXIT_SUCCESS) {
+				printf("Could not open ADC channel %d\n",ADC_O2_CHAN);
+			} else {
+				//					rttelemetry.BatteryV = val;
+				float volts = val * 0.125;
+		    	float o2_conc = -0.09 * volts + 222.3;
+//			printf("%.2f%% ..\n",o2_conc);
+//		printf("PS1 O2 Conc: %.1f%% %d(%0.2fmv)\n",o2_conc, val,(float)volts);
+			avg+= val;
+			}
+			sleep(5);
+                        c++;
 		}
+		avg = avg / c;
+		float volts = val * 0.125;
+		float o2_conc = -0.09 * volts + 222.3;
+		printf("PS1 O2 Conc: %.2f%% %d(%0.2fmv)\n",o2_conc, val,(float)volts);
 
 		short temperature, humidity;
 		if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
