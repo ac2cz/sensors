@@ -80,7 +80,7 @@ int main(void) {
 
 		if (co2_status == true) {
 			uint16_t co2_ppm_val;
-			uint16_t pressure_ref = (uint16_t)pressure/4096.0;
+			uint16_t pressure_ref = (uint16_t)(pressure/4096.0);
 			if (xensiv_pasco2_read(pressure_ref, &co2_ppm_val) != XENSIV_PASCO2_READ_NRDY) {
 				printf("CO2: %d ppm at %d hPa\n",co2_ppm_val, pressure_ref);
 			} else {
