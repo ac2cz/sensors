@@ -72,7 +72,10 @@ int main(void) {
 			printf("Could not open ADC channel %d\n",ADC_O2_CHAN);
 		} else {
 			//					rttelemetry.BatteryV = val;
-			printf("O2 V = %d(%0.2fmv)\n",val,(float)val*0.125);
+			// y = -94.545x + 233.526
+			float volts = val * 0.125;
+			float o2_conc = -94.545 * volts + 233.526;
+			printf("O2: %0.2f%% V = %d(%0.2fmv)\n",o2_conc, val,(float)volts);
 		}
 
 		short temperature, humidity;
