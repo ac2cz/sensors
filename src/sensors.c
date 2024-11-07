@@ -6,6 +6,25 @@
  Copyright   : Copyright 2024 ARISS
  Description : Student On Orbit Sensor System Main
  ============================================================================
+
+ This program reads the Student On Orbit Sensor system and writes the data to a file.
+ The sample interval is supplied on the command line.
+ The file name is supplied on the command line but data is written into a temporary
+ file until we are ready to copy it to a final file.  By definition, this is a whole
+ orbit data file because telemetry is collected while the program is running and saved
+ in the background.
+
+ The collection period for the file is also supplied or the file can be completed when
+ a signal is received.  Completing the file involved renaming the temporary file to its
+ final name.  Usually this will be in a queue folder for ingestion into the pacsat
+ directory
+
+ We can also supplu the name of the temporary file so that the calling program, most
+ likely iors_control, can read the latest record from that file if it is sending
+ real time telemetry of this type.
+
+ All files should be raw bytes.
+
  */
 
 #include <stdio.h>
@@ -17,6 +36,9 @@
 #include "SHTC3.h"
 #include "dfrobot_gas.h"
 #include "xensiv_pasco2.h"
+
+#define ADC_BUS_V_CHAN 3
+#define ADC_O2_CHAN 0
 
 /* Variables */
 static rttelemetry_t rttelemetry;
@@ -37,13 +59,22 @@ int main(void) {
 	while(1) {
 		/* Read the PI sensors */
 		int val;
-		int rc = adc_read(3, &val);
+		int rc = adc_read(ADC_BUS_V_CHAN, &val);
 		if (rc != EXIT_SUCCESS) {
-			printf("Could not open ADC\n");
+			printf("Could not open ADC channel %d\n",ADC_BUS_V_CHAN);
 		} else {
 			rttelemetry.BatteryV = val;
 			printf("Battery V = %d(%0.2fmv)\n",rttelemetry.BatteryV,(float)rttelemetry.BatteryV*0.125);
 		}
+
+		rc = adc_read(ADC_O2_CHAN, &val);
+		if (rc != EXIT_SUCCESS) {
+			printf("Could not open ADC channel %d\n",ADC_O2_CHAN);
+		} else {
+			//					rttelemetry.BatteryV = val;
+			printf("O2 V = %d(%0.2fmv)\n",val,(float)val*0.125);
+		}
+
 		short temperature, humidity;
 		if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
 			printf("Could not open SHTC3 Temperature sensor\n");
