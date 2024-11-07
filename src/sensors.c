@@ -67,16 +67,26 @@ int main(void) {
 			printf("Battery V = %d(%0.2fmv)\n",rttelemetry.BatteryV,(float)rttelemetry.BatteryV*0.125);
 		}
 
-		rc = adc_read(ADC_O2_CHAN, &val);
-		if (rc != EXIT_SUCCESS) {
-			printf("Could not open ADC channel %d\n",ADC_O2_CHAN);
-		} else {
-			//					rttelemetry.BatteryV = val;
-			// y = -94.545x + 233.526
-			float volts = val * 0.125;
-			float o2_conc = -94.545 * volts + 233.526;
-			printf("O2: %0.2f%% V = %d(%0.2fmv)\n",o2_conc, val,(float)volts);
+		int c=0;
+		float avg=0.0;
+		while (c < 60) {
+			rc = adc_read(ADC_O2_CHAN, &val);
+			if (rc != EXIT_SUCCESS) {
+				printf("Could not open ADC channel %d\n",ADC_O2_CHAN);
+			} else {
+				//					rttelemetry.BatteryV = val;
+				// y = -94.545x + 233.526
+				float volts = val * 0.125;
+				float o2_conc = -94.545 * volts + 233.526;
+				printf("O2: %0.2f%% V = %d(%0.2fmv)\n",o2_conc, val,(float)volts);
+				avg+= val;
+			}
+			sleep(5);
 		}
+		avg = avg / 12;
+		float volts = val * 0.125;
+		float o2_conc = -94.545 * volts + 233.526;
+		printf("AVG O2: %0.2f%% V = %d(%0.2fmv)\n",o2_conc, val,(float)volts);
 
 		short temperature, humidity;
 		if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
@@ -122,7 +132,7 @@ int main(void) {
 			}
 		}
 
-		sleep(PERIOD);
+//		sleep(PERIOD);
 	}
 
 	return EXIT_SUCCESS;
