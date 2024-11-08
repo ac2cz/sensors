@@ -37,8 +37,9 @@
 #include "dfrobot_gas.h"
 #include "xensiv_pasco2.h"
 
-#define ADC_BUS_V_CHAN 3
 #define ADC_O2_CHAN 0
+#define ADC_LDR_CHAN 1
+#define ADC_BUS_V_CHAN 3
 
 /* Variables */
 static rttelemetry_t rttelemetry;
@@ -64,9 +65,18 @@ int main(void) {
 			printf("Could not open ADC channel %d\n",ADC_BUS_V_CHAN);
 		} else {
 			rttelemetry.BatteryV = val;
-			printf("Battery V = %d(%0.0fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
+			printf("Bus Voltage = %d(%0.0fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
 		}
-int c=0;
+
+		rc = adc_read(ADC_LDR_CHAN, &val);
+		if (rc != EXIT_SUCCESS) {
+			printf("Could not open ADC channel %d\n",ADC_LDR_CHAN);
+		} else {
+//			rttelemetry.BatteryV = val;
+			printf("Photoresistor = %d(%0.0fmv)\n",val,(float)val*0.125);
+		}
+
+		int c=0;
 		float avg=0.0, max=0.0,min=65555;
 		while (c < 12) {
 			rc = adc_read(ADC_O2_CHAN, &val);
