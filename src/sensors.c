@@ -64,7 +64,7 @@ int main(void) {
 			printf("Could not open ADC channel %d\n",ADC_BUS_V_CHAN);
 		} else {
 			rttelemetry.BatteryV = val;
-			printf("Battery V = %d(%0.2fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
+			printf("Battery V = %d(%0.0fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
 		}
 int c=0;
 		float avg=0.0, max=0.0,min=65555;
@@ -74,10 +74,12 @@ int c=0;
 				printf("Could not open ADC channel %d\n",ADC_O2_CHAN);
 			} else {
 				//					rttelemetry.BatteryV = val;
-//				float volts = val * 0.125;
-//		    	float o2_conc = -0.09 * volts + 222.3;
+//y = -0.018x + 44.46
+			float volts = val * 0.125;
+		    	//float o2_conc = -0.09 * volts + 222.3;
+		    	float o2_conc = -0.01805 * volts + 44.5835;
 //			printf("%.2f%% ..\n",o2_conc);
-//		printf("PS1 O2 Conc: %.1f%% %d(%0.2fmv)\n",o2_conc, val,(float)volts);
+		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
 			if (val > max) max = val;
 			if (val < min) min = val;
 			avg+= val;
@@ -87,8 +89,8 @@ int c=0;
 		}
 		avg = avg / c;
 		float volts = val * 0.125;
-		float o2_conc = -0.09 * volts + 222.3;
-		printf("PS1 O2 Conc: %.2f%% %d(%0.2fmv) max:%d min:%d\n",o2_conc, val,(float)volts, max*0.125, min*0.125);
+		float o2_conc = -0.01805 * volts + 44.5835;
+		printf("PS1 O2 Conc: %.2f%% %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc, val,(float)volts, max*0.125, min*0.125);
 
 		short temperature, humidity;
 		if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
