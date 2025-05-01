@@ -62,7 +62,7 @@ unsigned int ADS1015_SINGLE_READ(unsigned int channel)  {          //Read single
     return data;
 }
 
-int adc_read(int channel, int *AIN3_DATA) {
+int adc_read(int channel, short *AIN3_DATA) {
 //	int  AIN0_DATA,AIN1_DATA,AIN2_DATA,AIN3_DATA;
 
 	if (channel <0 || channel > 3)

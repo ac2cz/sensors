@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -llgpio -lm
+LIBS := -llgpio -lm -liors_common
 

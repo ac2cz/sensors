@@ -4,32 +4,26 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../src/AD.c \
-../src/LPS22HB.c \
-../src/SHTC3.c \
-../src/dfrobot_gas.c \
-../src/sensors.c \
-../src/xensiv_pasco2.c 
+../imu/AK09918.c \
+../imu/IMU.c \
+../imu/QMI8658.c \
+../imu/imu_test.c 
 
 C_DEPS += \
-./src/AD.d \
-./src/LPS22HB.d \
-./src/SHTC3.d \
-./src/dfrobot_gas.d \
-./src/sensors.d \
-./src/xensiv_pasco2.d 
+./imu/AK09918.d \
+./imu/IMU.d \
+./imu/QMI8658.d \
+./imu/imu_test.d 
 
 OBJS += \
-./src/AD.o \
-./src/LPS22HB.o \
-./src/SHTC3.o \
-./src/dfrobot_gas.o \
-./src/sensors.o \
-./src/xensiv_pasco2.o 
+./imu/AK09918.o \
+./imu/IMU.o \
+./imu/QMI8658.o \
+./imu/imu_test.o 
 
 
 # Each subdirectory must supply rules for building sources it contributes
-src/%.o: ../src/%.c src/subdir.mk
+imu/%.o: ../imu/%.c imu/subdir.mk
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
 	gcc -I../inc -I/usr/local/include/iors_common -I../imu -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
@@ -37,10 +31,10 @@ src/%.o: ../src/%.c src/subdir.mk
 	@echo ' '
 
 
-clean: clean-src
+clean: clean-imu
 
-clean-src:
-	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
+clean-imu:
+	-$(RM) ./imu/AK09918.d ./imu/AK09918.o ./imu/IMU.d ./imu/IMU.o ./imu/QMI8658.d ./imu/QMI8658.o ./imu/imu_test.d ./imu/imu_test.o
 
-.PHONY: clean-src
+.PHONY: clean-imu
 

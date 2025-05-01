@@ -50,6 +50,6 @@
 #define ADS_CONFIG_COMP_QUE_FOUR            0x0002      //Assert after four conversions
 #define ADS_CONFIG_COMP_QUE_NON             0x0003      //Disable comparator and set ALERT/RDY pin to high-impedance (default)
 
-int adc_read(int channel, int *AIN3_DATA);
+int adc_read(int channel, short *AIN3_DATA);
 
 #endif
