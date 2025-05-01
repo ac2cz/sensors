@@ -238,7 +238,7 @@ int dfr_gas_read(short *temp, short *conc) {
 	float t = readTempC();
 //	*temp = TH_DATA;
 //	*conc = CONC_DATA;
-	printf("Temperature = %6.2f°C , O2 Conc = %6.2f%% \n", t, c);
+	printf("Temperature = %6.2f°C , O2 Conc = %6.1f%% \n", t, c);
 	lgI2cClose(dfr_gas_fd);
 	return EXIT_SUCCESS;
 }

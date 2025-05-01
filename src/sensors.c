@@ -43,11 +43,12 @@
 
 /* Variables */
 static rttelemetry_t rttelemetry;
-int PERIOD=1;
+int PERIOD=10;
 
 
 int main(void) {
 	puts("Student On Orbit Sensor System telemetry capture");
+printf("V1\n");
 
 	int co2_status = false;
 	int res = xensiv_pasco2_init();
@@ -57,25 +58,30 @@ int main(void) {
 		printf("Could not open CO2 gas sensor: %d\n",res);
 	}
 
+//printf("MQ-2,MQ-6\n");
 	while(1) {
 		/* Read the PI sensors */
 		int val;
-		int rc = adc_read(ADC_BUS_V_CHAN, &val);
+		int rc;
+#ifdef NOPE
+                rc = adc_read(1, &val);
 		if (rc != EXIT_SUCCESS) {
-			printf("Could not open ADC channel %d\n",ADC_BUS_V_CHAN);
+			printf("Could not open ADC channel %d\n",1);
 		} else {
-			rttelemetry.BatteryV = val;
-			printf("Bus Voltage = %d(%0.0fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
+	//		rttelemetry.BatteryV = val;
+printf("%0.0f,",val*0.125);
+//			printf("Bus Voltage = %d(%0.0fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
 		}
 
-		rc = adc_read(ADC_LDR_CHAN, &val);
+		rc = adc_read(2, &val);
 		if (rc != EXIT_SUCCESS) {
 			printf("Could not open ADC channel %d\n",ADC_LDR_CHAN);
 		} else {
 //			rttelemetry.BatteryV = val;
-			printf("Photoresistor = %d(%0.0fmv)\n",val,(float)val*0.125);
+//			printf("Photoresistor = %d(%0.0fmv)\n",val,(float)val*0.125);
+printf("%0.0f\n",val*0.125);
 		}
-
+#endif
 		int c=0;
 		float avg=0.0, max=0.0,min=65555;
 		while (c < 12) {
@@ -88,6 +94,7 @@ int main(void) {
 			float volts = val * 0.125;
 		    	//float o2_conc = -0.09 * volts + 222.3;
 		    	float o2_conc = -0.01805 * volts + 44.5835;
+		    	//float o2_conc = -0.0103 * volts + 25.103;
 //			printf("%.2f%% ..\n",o2_conc);
 		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
 			if (val > max) max = val;
@@ -98,9 +105,10 @@ int main(void) {
                         c++;
 		}
 		avg = avg / c;
-		float volts = val * 0.125;
+		float volts = avg * 0.125;
 		float o2_conc = -0.01805 * volts + 44.5835;
-		printf("PS1 O2 Conc: %.2f%% %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc, val,(float)volts, max*0.125, min*0.125);
+		//float o2_conc = -0.0103 * volts + 25.103;
+		printf("PS1 O2 Conc: %.1f%% %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc, val,(float)volts, max*0.125, min*0.125);
 
 		short temperature, humidity;
 		if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
