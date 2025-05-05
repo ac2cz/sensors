@@ -69,12 +69,12 @@ int verbose = 1;
 int calibrate_with_dfrobot_sensor = 0;
 int o2_temp_table_len = 6;
 double o2_temp_table[6][2] = {
-		{0.0, -3.0}
-		,{10.0, -1.0}
+		{0.0, 3.0}
+		,{10.0, 1.0}
 		,{20.0,0.0}
-		,{30,0.5}
-		,{40.0,1.0}
-		,{50.0,1.5}
+		,{30,-0.5}
+		,{40.0,-1.0}
+		,{50.0,-1.5}
 };
 int main(int argc, char *argv[]) {
 	signal (SIGQUIT, signal_exit);
@@ -234,7 +234,7 @@ int read_sensors(uint32_t now) {
 	} else {
 		sensor_telemetry.pi_bus_v = val;
 		if (verbose)
-			printf("PI Bus (5V): %0.0fmV,",val*0.125);
+			printf("PI Bus (5V): %0.0fmV,",2*val*0.125);
 		//			printf("Bus Voltage = %d(%0.0fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
 	}
 
@@ -367,10 +367,10 @@ int read_sensors(uint32_t now) {
 			}
 			offset = linear_interpolation(temp, first_key, last_key, first_value, last_value);
 
-			printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
+			//printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
 		}
 
-		printf("PS1 O2 Conc: %.1f (%.1f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
+		printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
 	}
 	sensor_telemetry.O2_conc = (short)avg;
 
