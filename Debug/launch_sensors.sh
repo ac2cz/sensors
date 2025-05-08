@@ -12,4 +12,4 @@ echo Launching sensors
 
 echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
-./sensors -f $LOGFILE -p 3 -v 
+./sensors -f $LOGFILE -p 30 -v 
