@@ -265,7 +265,7 @@ int read_sensors(uint32_t now) {
 		sensor_telemetry.LPS22_pressure = pressure;
 		sensor_telemetry.LPS22_temp = lps22_temperature;
 		if (verbose)
-			printf("Temperature = %6.2f °C, Pressure = %6.2f hPa\n", lps22_temperature/100.0, pressure/4096.0);
+			printf("Pressure = %6.3f hPa, Temperature = %6.2f °C\n", pressure/4096.0, lps22_temperature/100.0);
 	}
 
 	/* Read the color sensor */
@@ -324,13 +324,11 @@ int read_sensors(uint32_t now) {
 				printf("Could not open O2 Sensor ADC channel %d\n",ADC_O2_CHAN);
 		} else {
 			//					rttelemetry.BatteryV = val;
-			float volts = val * 0.125;
-			//float o2_conc = -0.09 * volts + 222.3;
-			float o2_conc = -0.01805 * volts + 44.5835;
-			//float o2_conc = -0.0103 * volts + 25.103;
+			//float volts = val * 0.125;
+			//float o2_conc = -0.01805 * volts + 44.5835;
 			//			printf("%.2f%% ..\n",o2_conc);
-			if (verbose)
-				printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
+		//	if (verbose)
+		//		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
 			if (val > max) max = val;
 			if (val < min) min = val;
 			avg+= val;
