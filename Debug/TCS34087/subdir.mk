@@ -4,26 +4,17 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../imu/AK09918.c \
-../imu/IMU.c \
-../imu/QMI8658.c \
-../imu/imu_test.c 
+../TCS34087/TCS34087.c 
 
 C_DEPS += \
-./imu/AK09918.d \
-./imu/IMU.d \
-./imu/QMI8658.d \
-./imu/imu_test.d 
+./TCS34087/TCS34087.d 
 
 OBJS += \
-./imu/AK09918.o \
-./imu/IMU.o \
-./imu/QMI8658.o \
-./imu/imu_test.o 
+./TCS34087/TCS34087.o 
 
 
 # Each subdirectory must supply rules for building sources it contributes
-imu/%.o: ../imu/%.c imu/subdir.mk
+TCS34087/%.o: ../TCS34087/%.c TCS34087/subdir.mk
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
 	gcc -I../inc -I/usr/local/include/iors_common -I../imu -I../TCS34087 -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
@@ -31,10 +22,10 @@ imu/%.o: ../imu/%.c imu/subdir.mk
 	@echo ' '
 
 
-clean: clean-imu
+clean: clean-TCS34087
 
-clean-imu:
-	-$(RM) ./imu/AK09918.d ./imu/AK09918.o ./imu/IMU.d ./imu/IMU.o ./imu/QMI8658.d ./imu/QMI8658.o ./imu/imu_test.d ./imu/imu_test.o
+clean-TCS34087:
+	-$(RM) ./TCS34087/TCS34087.d ./TCS34087/TCS34087.o
 
-.PHONY: clean-imu
+.PHONY: clean-TCS34087
 

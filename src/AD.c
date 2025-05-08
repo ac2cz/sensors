@@ -5,12 +5,12 @@
 #include"AD.h"
 
 int Config_Set;
-int fd; 
+int adc_fd; 
 
 int AD_readU16(int reg) {
 	int val;
     unsigned char Val_L,Val_H;
-    val=lgI2cReadWordData(fd,reg);                    //High and low bytes are the opposite       
+    val=lgI2cReadWordData(adc_fd,reg);                    //High and low bytes are the opposite       
     Val_H=val&0xff;
     Val_L=val>>8;
     val=(Val_H<<8)|Val_L;                               //Correct byte order
@@ -22,7 +22,7 @@ void AD_writeWord(int reg, int val) {
     Val_H=val&0xff;
     Val_L=val>>8;
     val=(Val_H<<8)|Val_L;                               ////Correct byte order
-	lgI2cWriteWordData(fd,reg,val);
+	lgI2cWriteWordData(adc_fd,reg,val);
 }
 
 unsigned int ADS1015_INIT() {
@@ -67,8 +67,8 @@ int adc_read(int channel, short *AIN3_DATA) {
 
 	if (channel <0 || channel > 3)
 		return EXIT_FAILURE;
-    fd=lgI2cOpen(1,ADS_I2C_ADDRESS,0);
-    if (fd < 0)
+    adc_fd=lgI2cOpen(1,ADS_I2C_ADDRESS,0);
+    if (adc_fd < 0)
     	return EXIT_FAILURE;
 	//printf("\nADS1015 Test Program ...\n");
     if(ADS1015_INIT()!=0x8000) {
@@ -86,6 +86,6 @@ int adc_read(int channel, short *AIN3_DATA) {
  //       debug_print("Battery V = %d(%0.2fmv)\n\r",AIN3_DATA,(float)AIN3_DATA*0.125);
         lguSleep(0.1);
 
-    lgI2cClose(fd);
+    lgI2cClose(adc_fd);
     return EXIT_SUCCESS;
 }

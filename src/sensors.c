@@ -45,6 +45,7 @@
 #include "dfrobot_gas.h"
 #include "xensiv_pasco2.h"
 #include "IMU.h"
+#include "TCS34087.h"
 
 #define MAX_FILE_PATH_LEN 256
 #define ADC_O2_CHAN 0
@@ -65,6 +66,7 @@ int PERIOD=10;
 char filename[MAX_FILE_PATH_LEN];
 int co2_status = false;
 int imu_status = false;
+int tcs_status = false;
 int verbose = 1;
 int calibrate_with_dfrobot_sensor = 0;
 int o2_temp_table_len = 6;
@@ -155,6 +157,20 @@ int main(int argc, char *argv[]) {
 		if (verbose)
 			printf("Could not open CO2 gas sensor: %d\n",res);
 	}
+
+//	if (DEV_ModuleInit() == 0) {
+		if(TCS34087_Init() == 0) {
+			if (verbose)
+				printf("TCS34087 init\n");
+			tcs_status = true;
+		} else {
+			if (verbose)
+				printf("Could not open TCS34087 light/color sensor\n");
+		}
+//	} else {
+//		if (verbose)
+//			printf("ERROR: Dev Module not initialized.  TCS Color Sensor not operational\n");
+//	}
 	while (1) {
 		time_t now = time(0);
 		read_sensors(now);
@@ -382,7 +398,19 @@ int read_sensors(uint32_t now) {
 		}
 	}
 
+	if (tcs_status) {
+		RGB rgb;
+		uint32_t RGB888=0;
+		uint16_t   RGB565=0;
 
+		rgb=TCS34087_Get_RGBData();
+		RGB888=TCS34087_GetRGB888(rgb);
+		RGB565=TCS34087_GetRGB565(rgb);
+
+		printf(" RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  RGB565=0X%X  C=%d LUX=%d ", (RGB888>>16), \
+				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, RGB565, rgb.C,TCS34087_Get_Lux(rgb));
+
+	}
 	return EXIT_SUCCESS;
 }
 
