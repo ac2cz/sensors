@@ -40,9 +40,7 @@ typedef struct __attribute__((__packed__)) {
     unsigned int pi_bus_v : 16;
     unsigned int max_sound_bin : 8;
     unsigned int light_level : 8;
-    unsigned int light_R : 8;
-    unsigned int light_G : 8;
-    unsigned int light_B : 8;
+    unsigned int light_RGB : 32;
     unsigned int sound_psd0 : 8;
     unsigned int sound_psd1 : 8;
     unsigned int sound_psd2 : 8;

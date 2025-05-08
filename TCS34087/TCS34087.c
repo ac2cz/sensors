@@ -237,7 +237,6 @@ uint8_t  TCS34087_Init(TCS34087Gain_t gain)
     Gain_t = gain;
     TCS34087_Set_Gain(gain);
     IntegrationTime_t = TCS34725_INTEGRATIONTIME_2_78MS;
-    //TCS34087_Disable();
     TCS34087_Enable();
     //Set Interrupt
     TCS34087_Interrupt_Enable();

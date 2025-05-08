@@ -339,65 +339,65 @@ int read_sensors(uint32_t now) {
 	}
 
 	/* Read the PS1 solid state O2 sensor.  Average 10 readings over 10 seconds */
-        if (o2_status) {
-	int c=0;
-	float avg=0.0, max=0.0,min=65555;
-	while (c < 10) {
-		rc = adc_read(ADC_O2_CHAN, &val);
-		if (rc != EXIT_SUCCESS) {
-			if (verbose)
-				printf("Could not open O2 Sensor ADC channel %d\n",ADC_O2_CHAN);
-			break;
-		} else {
-			//					rttelemetry.BatteryV = val;
-			//float volts = val * 0.125;
-			//float o2_conc = -0.01805 * volts + 44.5835;
-			//			printf("%.2f%% ..\n",o2_conc);
-		//	if (verbose)
-		//		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
-			if (val > max) max = val;
-			if (val < min) min = val;
-			avg+= val;
-		}
-		sleep(1);
-		c++;
-	}
-	avg = avg / c;
-	float volts = avg * 0.125;
-	float o2_conc = -0.01805 * volts + 44.5835;
-	//float o2_conc = -0.0103 * volts + 25.103;
-
-	if (c > 0 && verbose) {
-		/* Compensate for Temperature,  Look up temperature in table and interpolate the correction amount */
-		int i = 0;
-		double offset = 0.0;
-		double first_key = 0;
-		double last_key = 0;
-		double first_value = 0;
-		double last_value = 0;
-		double temp = lps22_temperature/100.0;
-
-		if (temp >= 0 && temp <= 50) {
-			while (i++ < o2_temp_table_len) {
-				if (o2_temp_table[i][0] < temp) {
-					first_key = o2_temp_table[i][0];
-					first_value = o2_temp_table[i][1];
-				}
-				if (o2_temp_table[i][0] > temp) {
-					last_key = o2_temp_table[i][0];
-					last_value = o2_temp_table[i][1];
-					break;
-				}
+	if (o2_status) {
+		int c=0;
+		float avg=0.0, max=0.0,min=65555;
+		while (c < 10) {
+			rc = adc_read(ADC_O2_CHAN, &val);
+			if (rc != EXIT_SUCCESS) {
+				if (verbose)
+					printf("Could not open O2 Sensor ADC channel %d\n",ADC_O2_CHAN);
+				break;
+			} else {
+				//					rttelemetry.BatteryV = val;
+				//float volts = val * 0.125;
+				//float o2_conc = -0.01805 * volts + 44.5835;
+				//			printf("%.2f%% ..\n",o2_conc);
+				//	if (verbose)
+				//		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
+				if (val > max) max = val;
+				if (val < min) min = val;
+				avg+= val;
 			}
-			offset = linear_interpolation(temp, first_key, last_key, first_value, last_value);
-
-			//printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
+			sleep(1);
+			c++;
 		}
+		avg = avg / c;
+		float volts = avg * 0.125;
+		float o2_conc = -0.01805 * volts + 44.5835;
+		//float o2_conc = -0.0103 * volts + 25.103;
 
-		printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
+		if (c > 0 && verbose) {
+			/* Compensate for Temperature,  Look up temperature in table and interpolate the correction amount */
+			int i = 0;
+			double offset = 0.0;
+			double first_key = 0;
+			double last_key = 0;
+			double first_value = 0;
+			double last_value = 0;
+			double temp = lps22_temperature/100.0;
+
+			if (temp >= 0 && temp <= 50) {
+				while (i++ < o2_temp_table_len) {
+					if (o2_temp_table[i][0] < temp) {
+						first_key = o2_temp_table[i][0];
+						first_value = o2_temp_table[i][1];
+					}
+					if (o2_temp_table[i][0] > temp) {
+						last_key = o2_temp_table[i][0];
+						last_value = o2_temp_table[i][1];
+						break;
+					}
+				}
+				offset = linear_interpolation(temp, first_key, last_key, first_value, last_value);
+
+				//printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
+			}
+
+			printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
+		}
+		sensor_telemetry.O2_conc = (short)avg;
 	}
-	sensor_telemetry.O2_conc = (short)avg;
-        }
 
 	/* If we are calibrating the O2 sensor then output values from dfrobot sensor if connected */
 	if (calibrate_with_dfrobot_sensor) {
@@ -411,17 +411,16 @@ int read_sensors(uint32_t now) {
 
 	/* Read the color sensor */
 	if (tcs_status) {
-		RGB rgb;
-		uint32_t RGB888=0;
-		uint16_t   RGB565=0;
+		RGB rgb=TCS34087_Get_RGBData();
+		uint32_t RGB888=TCS34087_GetRGB888(rgb);
+		uint16_t level = TCS34087_Get_Lux(rgb);
 
-		rgb=TCS34087_Get_RGBData();
-		RGB888=TCS34087_GetRGB888(rgb);
-		RGB565=TCS34087_GetRGB565(rgb);
+		if (verbose)
+			printf("RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
+				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, rgb.C,level);
 
-                if (verbose)
-		printf("RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  RGB565=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
-				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, RGB565, rgb.C,TCS34087_Get_Lux(rgb));
+		sensor_telemetry.light_level = level;
+        sensor_telemetry.light_RGB = RGB888;
 
 	}
 	return EXIT_SUCCESS;
