@@ -65,6 +65,7 @@ static sensor_telemetry_t sensor_telemetry;
 int PERIOD=10;
 char filename[MAX_FILE_PATH_LEN];
 int co2_status = false;
+int o2_status = false;
 int imu_status = false;
 int tcs_status = false;
 int verbose = 1;
@@ -149,6 +150,8 @@ int main(int argc, char *argv[]) {
 	 * Mag is -4912 to 4912uT, for 2s complement 16 bit result */
 	imu_status = imuInit();
 	//	debug_print("IMU State: %d\n",g_imu_state);
+
+        o2_status = true; // measure o2
 
 	int res = xensiv_pasco2_init();
 	if (res == EXIT_SUCCESS) {
@@ -331,6 +334,7 @@ int read_sensors(uint32_t now) {
 	}
 
 	/* Read the PS1 solid state O2 sensor.  Average 10 readings over 10 seconds */
+        if (o2_status) {
 	int c=0;
 	float avg=0.0, max=0.0,min=65555;
 	while (c < 10) {
@@ -387,6 +391,7 @@ int read_sensors(uint32_t now) {
 		printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
 	}
 	sensor_telemetry.O2_conc = (short)avg;
+        }
 
 	/* If we are calibrating the O2 sensor then output values from dfrobot sensor if connected */
 	if (calibrate_with_dfrobot_sensor) {
@@ -407,7 +412,8 @@ int read_sensors(uint32_t now) {
 		RGB888=TCS34087_GetRGB888(rgb);
 		RGB565=TCS34087_GetRGB565(rgb);
 
-		printf(" RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  RGB565=0X%X  C=%d LUX=%d ", (RGB888>>16), \
+                if (verbose)
+		printf(" RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  RGB565=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
 				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, RGB565, rgb.C,TCS34087_Get_Lux(rgb));
 
 	}

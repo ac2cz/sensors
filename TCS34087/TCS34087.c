@@ -230,16 +230,18 @@ uint8_t  TCS34087_Init(void)
     }
     //Set the integration time and gain
 	TCS34087_Set_Integration_Time(TCS34087_ATIME_Time41,TCS34725_INTEGRATIONTIME_2_78MS);	
-    TCS34087_Set_Gain(TCS34087_GAIN_128X);
+    Gain_t = TCS34087_GAIN_8X;
+    TCS34087_Set_Gain(Gain_t);
     IntegrationTime_t = TCS34725_INTEGRATIONTIME_2_78MS;
-    Gain_t = TCS34087_GAIN_128X;
+    //TCS34087_Disable();
     TCS34087_Enable();
     //Set Interrupt
     TCS34087_Interrupt_Enable();
     TCS34087_Set_Interrupt_Threshold(0xff00, 0x00ff);
     TCS34087_Set_Interrupt_Persistence_Reg(TCS34087_PERS_2_CYCLE);
+
     RGB_offset(LUM_1);
-    lgI2cClose(tcs_fd);
+//    lgI2cClose(tcs_fd);
 	return 0;
 }
 
@@ -251,7 +253,7 @@ parameter	:
 RGB TCS34087_Get_RGBData()
 {
     RGB temp;
-    tcs_fd = lgI2cOpen(1,TCS34087_ADDRESS,0);
+    //tcs_fd = lgI2cOpen(1,TCS34087_ADDRESS,0);
     temp.C = TCS34087_ReadWord(TCS34087_ADATA0L);
     temp.R = TCS34087_ReadWord(TCS34087_ADATA1L);
     temp.G = TCS34087_ReadWord(TCS34087_ADATA2L);
@@ -259,7 +261,7 @@ RGB TCS34087_Get_RGBData()
     temp.W = TCS34087_ReadWord(TCS34087_ADATA4L);
     temp.F = TCS34087_ReadWord(TCS34087_ADATA5L);
     // printf("C: %d  R: %d G: %d B: %d W: %d F: %d ASTATUS: %x\r\n\n",temp.C,temp.R,temp.G,temp.B,temp.W,temp.F,TCS34087_ReadByte(0x94));
-    lgI2cClose(tcs_fd);
+    //lgI2cClose(tcs_fd);
     
     switch (IntegrationTime_t){
         case TCS34725_INTEGRATIONTIME_2_78US:
