@@ -275,7 +275,8 @@ typedef struct{
 
 /*-----------------------------------------------------------------------------*/
 //initialization
-uint8_t TCS34087_Init(void);
+uint8_t TCS34087_Init(TCS34087Gain_t gain);
+uint8_t TCS34087_Close(void);
 void TCS34087_SetLight(uint16_t value);
 void TCS34087_Set_Gain(TCS34087Gain_t gain);
 void TCS34087_Set_Integration_Time(uint8_t atime,TCS34087_ASTEP_Time_t time);

@@ -214,13 +214,17 @@ void RGB_offset(uint8_t Lum)
     rgb_offset.B_Offset =  TCS34087_B_Offset;
 }
 
+uint8_t  TCS34087_Close(void) {
+	return lgI2cClose(tcs_fd);
+}
+
 /******************************************************************************
 function:   TCS34087 initialization
 parameter	:
         gain: gain Reference "TCS34087.h" Enumeration Type
         it  : Integration Time Reference "TCS34087.h" Enumeration Type
 ******************************************************************************/
-uint8_t  TCS34087_Init(void)
+uint8_t  TCS34087_Init(TCS34087Gain_t gain)
 {
 	uint8_t ID = 0;
     tcs_fd = lgI2cOpen(1,TCS34087_ADDRESS,0);
@@ -230,8 +234,8 @@ uint8_t  TCS34087_Init(void)
     }
     //Set the integration time and gain
 	TCS34087_Set_Integration_Time(TCS34087_ATIME_Time41,TCS34725_INTEGRATIONTIME_2_78MS);	
-    Gain_t = TCS34087_GAIN_8X;
-    TCS34087_Set_Gain(Gain_t);
+    Gain_t = gain;
+    TCS34087_Set_Gain(gain);
     IntegrationTime_t = TCS34725_INTEGRATIONTIME_2_78MS;
     //TCS34087_Disable();
     TCS34087_Enable();
@@ -241,7 +245,6 @@ uint8_t  TCS34087_Init(void)
     TCS34087_Set_Interrupt_Persistence_Reg(TCS34087_PERS_2_CYCLE);
 
     RGB_offset(LUM_1);
-//    lgI2cClose(tcs_fd);
 	return 0;
 }
 

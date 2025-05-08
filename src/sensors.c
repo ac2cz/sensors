@@ -151,7 +151,8 @@ int main(int argc, char *argv[]) {
 	imu_status = imuInit();
 	//	debug_print("IMU State: %d\n",g_imu_state);
 
-        o2_status = true; // measure o2
+	// TODO - this should come from command line so iors_control can activate it or not
+    o2_status = true; // measure o2
 
 	int res = xensiv_pasco2_init();
 	if (res == EXIT_SUCCESS) {
@@ -161,19 +162,18 @@ int main(int argc, char *argv[]) {
 			printf("Could not open CO2 gas sensor: %d\n",res);
 	}
 
-//	if (DEV_ModuleInit() == 0) {
-		if(TCS34087_Init() == 0) {
-			if (verbose)
-				printf("TCS34087 init\n");
-			tcs_status = true;
-		} else {
-			if (verbose)
-				printf("Could not open TCS34087 light/color sensor\n");
-		}
-//	} else {
-//		if (verbose)
-//			printf("ERROR: Dev Module not initialized.  TCS Color Sensor not operational\n");
-//	}
+	/* We may need to pass the gain through from config.  We would add to the command line so iors_control
+	 * can set it */
+	if(TCS34087_Init(TCS34087_GAIN_8X) == 0) {
+		if (verbose)
+			printf("TCS34087 init\n");
+		tcs_status = true;
+	} else {
+		if (verbose)
+			printf("Could not open TCS34087 light/color sensor\n");
+	}
+
+	/* Now read the sensors until we get an interrup to exit */
 	while (1) {
 		time_t now = time(0);
 		read_sensors(now);
@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
 			sleep_time = PERIOD;
 		if (sleep_time > 0) {
 			if (verbose)
-				printf("Waiting %d seconds ...\n", sleep_time);
+				printf("  Waiting %d seconds ...\n", sleep_time);
 			sleep(sleep_time);
 		}
 		int rc = log_append(filename,(unsigned char *)&sensor_telemetry, sizeof(sensor_telemetry));
@@ -213,6 +213,8 @@ void help(void) {
 void signal_exit (int sig) {
 	if(verbose)
 		printf (" Signal received, exiting ...\n");
+	TCS34087_Close();
+	lguSleep(2/1000);
 	exit (0);
 }
 
@@ -231,8 +233,11 @@ int read_sensors(uint32_t now) {
 	if (rc != EXIT_SUCCESS) {
 		if (verbose)
 			printf("Could not open MQ-6 Methane sensor ADC channel %d\n",ADC_METHANE_CHAN);
+		sensor_telemetry.methane_conc = 0;
+		sensor_telemetry.methane_sensor_valid = 0;
 	} else {
 		sensor_telemetry.methane_conc = val;
+		sensor_telemetry.methane_sensor_valid = 1;
 		if (verbose)
 			printf("MQ-6 Methane: %d,",val);
 	}
@@ -241,20 +246,23 @@ int read_sensors(uint32_t now) {
 	if (rc != EXIT_SUCCESS) {
 		if (verbose)
 			printf("Could not open MQ-135 Air Quality ADC channel %d\n",ADC_AIR_QUALITY_CHAN);
+		sensor_telemetry.air_quality = 0;
+		sensor_telemetry.air_q_sensor_valid = 0;
 	} else {
 		if (verbose)
 			printf("MQ-135 Air Q: %d\n",val);
+		sensor_telemetry.air_quality = val;
+		sensor_telemetry.air_q_sensor_valid = 1;
 	}
 
 	rc = adc_read(ADC_BUS_V_CHAN, &val);
 	if (rc != EXIT_SUCCESS) {
 		if (verbose)
-			printf("Could not open Bus Voltasge sensor ADC channel %d\n",ADC_BUS_V_CHAN);
+			printf("Could not open Bus Voltage sensor ADC channel %d\n",ADC_BUS_V_CHAN);
 	} else {
 		sensor_telemetry.pi_bus_v = val;
 		if (verbose)
 			printf("PI Bus (5V): %0.0fmV,",2*val*0.125);
-		//			printf("Bus Voltage = %d(%0.0fmv)\n",rttelemetry.BatteryV,(float)2*rttelemetry.BatteryV*0.125);
 	}
 
 	/* Read Waveshare C board sensors */
@@ -286,9 +294,6 @@ int read_sensors(uint32_t now) {
 		if (verbose)
 			printf("Pressure = %6.3f hPa, Temperature = %6.2f °C\n", pressure/4096.0, lps22_temperature/100.0);
 	}
-
-	/* Read the color sensor */
-	//TODO
 
 	/* Read the Gyroscope */
 	if (imu_status) {
@@ -342,6 +347,7 @@ int read_sensors(uint32_t now) {
 		if (rc != EXIT_SUCCESS) {
 			if (verbose)
 				printf("Could not open O2 Sensor ADC channel %d\n",ADC_O2_CHAN);
+			break;
 		} else {
 			//					rttelemetry.BatteryV = val;
 			//float volts = val * 0.125;
@@ -361,7 +367,7 @@ int read_sensors(uint32_t now) {
 	float o2_conc = -0.01805 * volts + 44.5835;
 	//float o2_conc = -0.0103 * volts + 25.103;
 
-	if (verbose) {
+	if (c > 0 && verbose) {
 		/* Compensate for Temperature,  Look up temperature in table and interpolate the correction amount */
 		int i = 0;
 		double offset = 0.0;
@@ -403,6 +409,7 @@ int read_sensors(uint32_t now) {
 		}
 	}
 
+	/* Read the color sensor */
 	if (tcs_status) {
 		RGB rgb;
 		uint32_t RGB888=0;
@@ -413,7 +420,7 @@ int read_sensors(uint32_t now) {
 		RGB565=TCS34087_GetRGB565(rgb);
 
                 if (verbose)
-		printf(" RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  RGB565=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
+		printf("RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  RGB565=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
 				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, RGB565, rgb.C,TCS34087_Get_Lux(rgb));
 
 	}
