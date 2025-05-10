@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
 
 	/* We may need to pass the gain through from config.  We would add to the command line so iors_control
 	 * can set it */
-	if(TCS34087_Init(TCS34087_GAIN_8X) == 0) {
+	if(TCS34087_Init(TCS34087_GAIN_16X) == 0) {
 		if (verbose)
 			printf("TCS34087 init\n");
 		tcs_status = true;

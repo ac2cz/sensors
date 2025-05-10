@@ -239,10 +239,11 @@ uint8_t  TCS34087_Init(TCS34087Gain_t gain)
     IntegrationTime_t = TCS34725_INTEGRATIONTIME_2_78MS;
     TCS34087_Enable();
     //Set Interrupt
-    TCS34087_Interrupt_Enable();
+    TCS34087_Interrupt_Disable();
+    /*TCS34087_Interrupt_Enable();
     TCS34087_Set_Interrupt_Threshold(0xff00, 0x00ff);
     TCS34087_Set_Interrupt_Persistence_Reg(TCS34087_PERS_2_CYCLE);
-
+*/
     RGB_offset(LUM_1);
 	return 0;
 }
