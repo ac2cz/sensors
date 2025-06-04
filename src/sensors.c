@@ -48,9 +48,9 @@
 #include "TCS34087.h"
 
 #define MAX_FILE_PATH_LEN 256
-#define ADC_O2_CHAN 0
-#define ADC_METHANE_CHAN 1
-#define ADC_AIR_QUALITY_CHAN 2
+#define ADC_O2_CHAN 2
+#define ADC_METHANE_CHAN 0
+#define ADC_AIR_QUALITY_CHAN 1
 #define ADC_BUS_V_CHAN 3
 
 /* Forward functions */
