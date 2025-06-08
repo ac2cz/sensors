@@ -7,24 +7,30 @@ C_SRCS += \
 ../src/AD.c \
 ../src/LPS22HB.c \
 ../src/SHTC3.c \
+../src/config.c \
 ../src/dfrobot_gas.c \
 ../src/sensors.c \
+../src/state_file.c \
 ../src/xensiv_pasco2.c 
 
 C_DEPS += \
 ./src/AD.d \
 ./src/LPS22HB.d \
 ./src/SHTC3.d \
+./src/config.d \
 ./src/dfrobot_gas.d \
 ./src/sensors.d \
+./src/state_file.d \
 ./src/xensiv_pasco2.d 
 
 OBJS += \
 ./src/AD.o \
 ./src/LPS22HB.o \
 ./src/SHTC3.o \
+./src/config.o \
 ./src/dfrobot_gas.o \
 ./src/sensors.o \
+./src/state_file.o \
 ./src/xensiv_pasco2.o 
 
 
@@ -40,7 +46,7 @@ src/%.o: ../src/%.c src/subdir.mk
 clean: clean-src
 
 clean-src:
-	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
+	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/config.d ./src/config.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/state_file.d ./src/state_file.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
 
 .PHONY: clean-src
 

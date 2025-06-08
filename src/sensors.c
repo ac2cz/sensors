@@ -7,23 +7,28 @@
  Description : Student On Orbit Sensor System Main
  ============================================================================
 
- This program reads the Student On Orbit Sensor system and writes the data to a file.
- The sample interval is supplied on the command line.
- The file name is supplied on the command line but data is written into a temporary
- file until we are ready to copy it to a final file.  By definition, this is a whole
- orbit data file because telemetry is collected while the program is running and saved
- in the background.
+ This program reads the Student On Orbit Sensor system and writes the data to two files.
+ - The RT telemetry file, which contains one line of data and is overwritten with new data
+ - The WOD telemetry file, which is appended until the file is rolled or a max size as
+   a safety precaution.
 
- The collection period for the file is also supplied or the file can be completed when
- a signal is received.  Completing the file involved renaming the temporary file to its
- final name.  Usually this will be in a queue folder for ingestion into the pacsat
- directory
+ Fixed settings are stored in the config file
+ Volatile settings are stored in the state file.  This file can be updated by iors_control
+ based on commands from the ground, the UI or for other operational reasons.  This file is
+ read each te;emtry cycle so that the latest changes are applied.
 
- We can also supplu the name of the temporary file so that the calling program, most
- likely iors_control, can read the latest record from that file if it is sending
- real time telemetry of this type.
+ The file names are in the config file and write data to a temporary file until we are
+ ready to copy it to a final file.
 
- All files should be raw bytes.
+ The collection period for the WOD file is in the state file.  Completing the file
+ involves renaming the temporary file to its final name.  Usually this will be in a
+ queue folder for ingestion into the pacsat directory.
+
+ There is a slight complexity if we are running from the mounted USB drive or if we booted
+ from the USB drive.  This means the data folder is passed on the command line, just as
+ it is for pi_pacsat
+
+ All telem files should be raw bytes suitable for reading back into a C structure
 
  */
 
@@ -36,7 +41,10 @@
 #include <time.h>
 #include <sys/time.h>
 
+#include "config.h"
+#include "state_file.h"
 #include "iors_log.h"
+#include "iors_command.h"
 #include "sensor_telemetry.h"
 #include "str_util.h"
 #include "AD.h"
@@ -53,6 +61,32 @@
 #define ADC_AIR_QUALITY_CHAN 1
 #define ADC_BUS_V_CHAN 3
 
+/*
+ *  GLOBAL VARIABLES defined here.  They are declared in config.h
+ *  These are the default values.  Many can be updated with a value
+ *  in pacsat.config or can be overridden on the command line.
+ *
+ */
+int g_run_self_test;    /* true when the self test is running */
+int g_verbose = false;
+char g_log_filename[MAX_FILE_PATH_LEN];
+
+/* These global variables are in the config file */
+char g_mic_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial0"; // device name for the serial port for ultrasonic mic
+char g_cw1_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial1"; // device name for the serial port for cosmic watch
+char g_cw2_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial2"; // device name for the serial port for cosmic watch
+char g_rt_telem_path[MAX_FILE_PATH_LEN] = "rt_telemetry.dat";
+char g_wod_telem_path[MAX_FILE_PATH_LEN] = "wod_telemetry.dat";
+
+/* These global variables are in the state file and are resaved when changed.  These default values are
+ * overwritten when the state file is loaded */
+int g_state_sensors_enabled = 1;
+int g_state_period_to_send_telem_in_seconds = 360;
+int g_state_period_to_store_wod_in_seconds = 60;
+int g_wod_max_file_size = 200000; // bytes.  Note that WOD every min for a 128 byte layout gives 184320 bytes in 24 hours.  So keep layout under 128 bytes or wod frequency greater
+int g_state_sensor_log_level = INFO_LOG;
+int g_period_to_sample_telem_in_seconds = 30;
+
 /* Forward functions */
 int read_sensors(uint32_t now);
 void help(void);
@@ -60,18 +94,24 @@ void signal_exit (int sig);
 void signal_load_config (int sig);
 double linear_interpolation(double x, double x0, double x1, double y0, double y1);
 
-/* Variables */
+/* Local Variables */
+char config_file_name[MAX_FILE_PATH_LEN] = "sensors.config";
+char data_folder_path[MAX_FILE_PATH_LEN] = "./pacsat";
 static sensor_telemetry_t sensor_telemetry;
-int PERIOD=10;
-char filename[MAX_FILE_PATH_LEN];
+//int PERIOD=10;
+//char filename[MAX_FILE_PATH_LEN];
 int co2_status = false;
 int o2_status = false;
 int imu_status = false;
 int tcs_status = false;
-int verbose = 1;
 int calibrate_with_dfrobot_sensor = 0;
-int o2_temp_table_len = 6;
-double o2_temp_table[6][2] = {
+
+time_t last_time_checked_rt = 0;
+time_t last_time_checked_wod = 0;
+
+/* Temperature compensation table for O2 saensor */
+#define O2_TEMPERATURE_TABLE_LEN 6
+double o2_temp_table[O2_TEMPERATURE_TABLE_LEN][2] = {
 		{0.0, 3.0}
 		,{10.0, 1.0}
 		,{20.0,0.0}
@@ -79,18 +119,17 @@ double o2_temp_table[6][2] = {
 		,{40.0,-1.0}
 		,{50.0,-1.5}
 };
+
 int main(int argc, char *argv[]) {
 	signal (SIGQUIT, signal_exit);
 	signal (SIGTERM, signal_exit);
 	signal (SIGHUP, signal_load_config);
 	signal (SIGINT, signal_exit);
 
-	filename[0] = 0; // make sure string is empty and terminated
-
 	struct option long_option[] = {
 			{"help", no_argument, NULL, 'h'},
-			{"period", required_argument, NULL, 'p'},
-			{"filename", required_argument, NULL, 'f'},
+			{"dir", required_argument, NULL, 'd'},
+			{"config", required_argument, NULL, 'c'},
 			{"test", no_argument, NULL, 't'},
 			{"verbose", no_argument, NULL, 'v'},
 			{NULL, 0, NULL, 0},
@@ -100,7 +139,7 @@ int main(int argc, char *argv[]) {
 
 	while (1) {
 		int c;
-		if ((c = getopt_long(argc, argv, "htvp:f:", long_option, NULL)) < 0)
+		if ((c = getopt_long(argc, argv, "hd:c:tv", long_option, NULL)) < 0)
 			break;
 		switch (c) {
 		case 'h': // help
@@ -110,17 +149,14 @@ int main(int argc, char *argv[]) {
 			calibrate_with_dfrobot_sensor = 1;
 			break;
 		case 'v': // verbose
-			verbose = true;
+			g_verbose = true;
 			break;
-		case 'p': // period
-			int t = (int)strtol(optarg, NULL, 10);
-			if (t > 0 && t < 86400) /* Set a sensible min max from 1 second to 24 hours */
-				PERIOD = t;
+		case 'c': // config file name
+			strlcpy(config_file_name, optarg, sizeof(config_file_name));
 			break;
-		case 'f': // filename
-			strlcpy(filename, optarg, sizeof(filename));
+		case 'd': // data folder
+			strlcpy(data_folder_path, optarg, sizeof(data_folder_path));
 			break;
-
 
 		default:
 			break;
@@ -132,16 +168,46 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 
-	if (strlen(filename) == 0) {
-		printf("ERROR: Telemetry filename required with the -f paramaeter\n");
-		help();
+	/* Load configuration from the config file */
+	load_config(config_file_name);
+	load_state("sensors.state");
+
+
+
+	char rt_telem_path[MAX_FILE_PATH_LEN];
+	strlcpy(rt_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
+	strlcat(rt_telem_path,"/",MAX_FILE_PATH_LEN);
+	strlcat(rt_telem_path,g_rt_telem_path,MAX_FILE_PATH_LEN);
+
+	char wod_telem_path[MAX_FILE_PATH_LEN];
+	strlcpy(wod_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
+	strlcat(wod_telem_path,"/",MAX_FILE_PATH_LEN);
+	strlcat(wod_telem_path,get_folder_str(FolderWod),MAX_FILE_PATH_LEN);
+	strlcat(wod_telem_path,"/",MAX_FILE_PATH_LEN);
+	strlcat(wod_telem_path,g_wod_telem_path,MAX_FILE_PATH_LEN);
+
+	char log_path[MAX_FILE_PATH_LEN];
+	//make_dir_path(get_folder_str(FolderLog), data_folder_path, data_folder_path, log_path);
+	strlcpy(log_path, data_folder_path,MAX_FILE_PATH_LEN);
+	strlcat(log_path,"/",MAX_FILE_PATH_LEN);
+	strlcat(log_path,get_folder_str(FolderLog),MAX_FILE_PATH_LEN);
+
+	log_init(get_log_name_str(LOG_NAME), log_path, g_log_filename);
+	log_set_level(g_state_sensor_log_level);
+	log_alog1(INFO_LOG, g_log_filename, ALOG_SENSORS_STARTUP, 0);
+
+	if (strlen(g_rt_telem_path) == 0) {
+		printf("ERROR: Telemetry filename required\n");
 		return 1;
 	}
+	if (strlen(g_wod_telem_path) == 0) {
+		printf("ERROR: WOD Telemetry filename required\n");
+		return 2;
+	}
 
-	if (verbose) {
-		puts("Student On Orbit Sensor System Telemetry Capture");
-		printf("V1\n");
-		printf("Period: %d File: %s\n",PERIOD, filename);
+	if (g_verbose) {
+		printf("Student On Orbit Sensor System Telemetry Capture\n");
+		printf("Build: %s\n", VERSION);
 	}
 
 	/* Setup the IMU.  Defaults are:
@@ -158,39 +224,74 @@ int main(int argc, char *argv[]) {
 	if (res == EXIT_SUCCESS) {
 		co2_status = true;
 	} else {
-		if (verbose)
+		if (g_verbose)
 			printf("Could not open CO2 gas sensor: %d\n",res);
 	}
 
 	/* We may need to pass the gain through from config.  We would add to the command line so iors_control
 	 * can set it */
 	if(TCS34087_Init(TCS34087_GAIN_16X) == 0) {
-		if (verbose)
+		if (g_verbose)
 			printf("TCS34087 init\n");
 		tcs_status = true;
 	} else {
-		if (verbose)
+		if (g_verbose)
 			printf("Could not open TCS34087 light/color sensor\n");
 	}
 
-	/* Now read the sensors until we get an interrup to exit */
+	/* Make a tmp filename so that atomic writes to the RT file can be made with a rename */
+	char tmp_filename[MAX_FILE_PATH_LEN];
+	log_make_tmp_filename(rt_telem_path, tmp_filename);
+
+	/* Now read the sensors until we get an interrupt to exit */
 	while (1) {
 		time_t now = time(0);
 		read_sensors(now);
+
+		if ((now - last_time_checked_rt) > g_state_period_to_send_telem_in_seconds) {
+			last_time_checked_rt = now;
+
+			uint8_t * data = (unsigned char *)&sensor_telemetry;
+			FILE * outfile = fopen(tmp_filename, "wb");
+			if (outfile != NULL) {
+				/* Save the telemetry bytes */
+				for (int i=0; i<sizeof(sensor_telemetry); i++) {
+					int c = fputc(data[i],outfile);
+					if (c == EOF) {
+						fclose(outfile);
+						break;
+					}
+				}
+				fclose(outfile);
+				if (rename(tmp_filename, rt_telem_path) != EXIT_SUCCESS) {
+					if (g_verbose)
+						printf("ERROR, could not rename RT telem filename from: %s to: %s\n",tmp_filename, g_rt_telem_path);
+				}
+			} else {
+				if (g_verbose)
+					printf("ERROR, could not save data to filename: %s\n",g_rt_telem_path);
+				//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
+			}
+		}
+		if ((now - last_time_checked_wod) > g_state_period_to_store_wod_in_seconds) {
+			last_time_checked_wod = now;
+
+			int rc = log_append(wod_telem_path,(unsigned char *)&sensor_telemetry, sizeof(sensor_telemetry));
+			if (rc != EXIT_SUCCESS) {
+				if (g_verbose)
+					printf("ERROR, could not save data to filename: %s\n",g_wod_telem_path);
+				//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
+			}
+		}
+
 		time_t time_after_read = time(0);
-		int sleep_time = PERIOD - (time_after_read - now);
+		int sleep_time = g_period_to_sample_telem_in_seconds - (time_after_read - now);
 		if (sleep_time > 86400) /* Then something went wrong with the calculation or the clocks */
-			sleep_time = PERIOD;
+			sleep_time = g_period_to_sample_telem_in_seconds;
 		if (sleep_time > 0) {
-			if (verbose)
+			if (g_verbose)
 				printf("  Waiting %d seconds ...\n", sleep_time);
 			sleep(sleep_time);
-		}
-		int rc = log_append(filename,(unsigned char *)&sensor_telemetry, sizeof(sensor_telemetry));
-		if (rc != EXIT_SUCCESS) {
-			if (verbose)
-				printf("ERROR, could not save data to filename: %s\n",filename);
-			//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
 		}
 	}
 }
@@ -202,6 +303,7 @@ void help(void) {
 	printf(
 			"Usage: sensors [OPTION]... \n"
 			"-h,--help                        help\n"
+			"-c,--config                      use config file specified\n"
 			"-d,--dir                         use this data directory, rather than default\n"
 			"-t,--test                        provide readings from additional calibration sensor\n"
 			"-v,--verbose                     print additional status and progress messages\n"
@@ -211,17 +313,17 @@ void help(void) {
 
 
 void signal_exit (int sig) {
-	if(verbose)
+	if(g_verbose)
 		printf (" Signal received, exiting ...\n");
 	TCS34087_Close();
 	lguSleep(2/1000);
+	log_alog1(INFO_LOG, g_log_filename, ALOG_SENSORS_SHUTDOWN, 0);
 	exit (0);
 }
 
 void signal_load_config (int sig) {
-	if (verbose)
-		printf ("ERROR: Signal received, updating config not yet implemented...\n");
-	// TODO SIHUP should reload the config perhaps
+	load_config(config_file_name);
+	load_state("sensors.state");
 }
 
 int read_sensors(uint32_t now) {
@@ -231,25 +333,25 @@ int read_sensors(uint32_t now) {
 	int rc;
 	rc = adc_read(ADC_METHANE_CHAN, &val);
 	if (rc != EXIT_SUCCESS) {
-		if (verbose)
+		if (g_verbose)
 			printf("Could not open MQ-6 Methane sensor ADC channel %d\n",ADC_METHANE_CHAN);
 		sensor_telemetry.methane_conc = 0;
 		sensor_telemetry.methane_sensor_valid = 0;
 	} else {
 		sensor_telemetry.methane_conc = val;
 		sensor_telemetry.methane_sensor_valid = 1;
-		if (verbose)
+		if (g_verbose)
 			printf("MQ-6 Methane: %d,",val);
 	}
 
 	rc = adc_read(ADC_AIR_QUALITY_CHAN, &val);
 	if (rc != EXIT_SUCCESS) {
-		if (verbose)
+		if (g_verbose)
 			printf("Could not open MQ-135 Air Quality ADC channel %d\n",ADC_AIR_QUALITY_CHAN);
 		sensor_telemetry.air_quality = 0;
 		sensor_telemetry.air_q_sensor_valid = 0;
 	} else {
-		if (verbose)
+		if (g_verbose)
 			printf("MQ-135 Air Q: %d\n",val);
 		sensor_telemetry.air_quality = val;
 		sensor_telemetry.air_q_sensor_valid = 1;
@@ -257,11 +359,11 @@ int read_sensors(uint32_t now) {
 
 	rc = adc_read(ADC_BUS_V_CHAN, &val);
 	if (rc != EXIT_SUCCESS) {
-		if (verbose)
+		if (g_verbose)
 			printf("Could not open Bus Voltage sensor ADC channel %d\n",ADC_BUS_V_CHAN);
 	} else {
 		sensor_telemetry.pi_bus_v = val;
-		if (verbose)
+		if (g_verbose)
 			printf("PI Bus (5V): %0.0fmV,",2*val*0.125);
 	}
 
@@ -269,7 +371,7 @@ int read_sensors(uint32_t now) {
 	/* Read the SHTC3 temp and humidity */
 	short temperature, humidity;
 	if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
-		if (verbose)
+		if (g_verbose)
 			printf("Could not open SHTC3 Temperature sensor\n");
 	} else {
 		sensor_telemetry.SHTC3_temp = temperature;
@@ -278,7 +380,7 @@ int read_sensors(uint32_t now) {
 		float TH_Value, RH_Value;
 		TH_Value = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
 		RH_Value = 100 * (float)humidity / 65536.0f;         // Calculate humidity value
-		if (verbose)
+		if (g_verbose)
 			printf("Temperature = %6.2f°C , Humidity = %6.2f%% \n", TH_Value, RH_Value);
 	}
 
@@ -286,12 +388,12 @@ int read_sensors(uint32_t now) {
 	short lps22_temperature;
 	int pressure;
 	if (LPS22HB_read(&pressure, &lps22_temperature) != EXIT_SUCCESS) {
-		if (verbose)
+		if (g_verbose)
 			printf("Could not open LPS22 Pressure sensor\n");
 	} else {
 		sensor_telemetry.LPS22_pressure = pressure;
 		sensor_telemetry.LPS22_temp = lps22_temperature;
-		if (verbose)
+		if (g_verbose)
 			printf("Pressure = %6.3f hPa, Temperature = %6.2f °C\n", pressure/4096.0, lps22_temperature/100.0);
 	}
 
@@ -302,7 +404,7 @@ int read_sensors(uint32_t now) {
 		IMU_ST_SENSOR_DATA stMagnRawData;
 
 		imuDataGetRaw(&stGyroRawData, &stAccelRawData, &stMagnRawData);
-		if (verbose) {
+		if (g_verbose) {
 			printf("Acceleration: X: %d     Y: %d     Z: %d \n",stAccelRawData.s16X, stAccelRawData.s16Y, stAccelRawData.s16Z);
 			printf("Gyroscope: X: %d     Y: %d     Z: %d \n",stGyroRawData.s16X, stGyroRawData.s16Y, stGyroRawData.s16Z);
 			printf("Magnetic: X: %d     Y: %d     Z: %d \n",stMagnRawData.s16X, stMagnRawData.s16Y, stMagnRawData.s16Z);
@@ -330,10 +432,10 @@ int read_sensors(uint32_t now) {
 		uint16_t co2_ppm_val;
 		uint16_t pressure_ref = (uint16_t)(pressure/4096.0);
 		if (xensiv_pasco2_read(pressure_ref, &co2_ppm_val) != XENSIV_PASCO2_READ_NRDY) {
-			if (verbose)
+			if (g_verbose)
 				printf("CO2: %d ppm at %d hPa\n",co2_ppm_val, pressure_ref);
 		} else {
-			if (verbose)
+			if (g_verbose)
 				printf("CO2 Sensor not ready\n");
 		}
 	}
@@ -345,7 +447,7 @@ int read_sensors(uint32_t now) {
 		while (c < 10) {
 			rc = adc_read(ADC_O2_CHAN, &val);
 			if (rc != EXIT_SUCCESS) {
-				if (verbose)
+				if (g_verbose)
 					printf("Could not open O2 Sensor ADC channel %d\n",ADC_O2_CHAN);
 				break;
 			} else {
@@ -353,7 +455,7 @@ int read_sensors(uint32_t now) {
 				//float volts = val * 0.125;
 				//float o2_conc = -0.01805 * volts + 44.5835;
 				//			printf("%.2f%% ..\n",o2_conc);
-				//	if (verbose)
+				//	if (g_verbose)
 				//		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
 				if (val > max) max = val;
 				if (val < min) min = val;
@@ -367,7 +469,7 @@ int read_sensors(uint32_t now) {
 		float o2_conc = -0.01805 * volts + 44.5835;
 		//float o2_conc = -0.0103 * volts + 25.103;
 
-		if (c > 0 && verbose) {
+		if (c > 0 && g_verbose) {
 			/* Compensate for Temperature,  Look up temperature in table and interpolate the correction amount */
 			int i = 0;
 			double offset = 0.0;
@@ -378,7 +480,7 @@ int read_sensors(uint32_t now) {
 			double temp = lps22_temperature/100.0;
 
 			if (temp >= 0 && temp <= 50) {
-				while (i++ < o2_temp_table_len) {
+				while (i++ < O2_TEMPERATURE_TABLE_LEN) {
 					if (o2_temp_table[i][0] < temp) {
 						first_key = o2_temp_table[i][0];
 						first_value = o2_temp_table[i][1];
@@ -404,7 +506,7 @@ int read_sensors(uint32_t now) {
 		short gas_temp;
 		short gas_conc;
 		if (dfr_gas_read(&gas_temp, &gas_conc) != EXIT_SUCCESS) {
-			if (verbose)
+			if (g_verbose)
 				printf("Could not open DF Robot O2 Sensor\n");
 		}
 	}
@@ -415,7 +517,7 @@ int read_sensors(uint32_t now) {
 		uint32_t RGB888=TCS34087_GetRGB888(rgb);
 		uint16_t level = TCS34087_Get_Lux(rgb);
 
-		if (verbose)
+		if (g_verbose)
 			printf("RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
 				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, rgb.C,level);
 
