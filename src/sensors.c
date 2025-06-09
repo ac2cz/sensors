@@ -50,10 +50,11 @@
 #include "AD.h"
 #include "LPS22HB.h"
 #include "SHTC3.h"
-#include "dfrobot_gas.h"
 #include "xensiv_pasco2.h"
 #include "IMU.h"
 #include "TCS34087.h"
+#include "ultrasonic_mic.h"
+//#include "dfrobot_gas.h"
 
 #define MAX_FILE_PATH_LEN 256
 #define ADC_O2_CHAN 2
@@ -243,6 +244,8 @@ int main(int argc, char *argv[]) {
 	char tmp_filename[MAX_FILE_PATH_LEN];
 	log_make_tmp_filename(rt_telem_path, tmp_filename);
 
+	debug_print("Telem Length: %ld bytes\n", sizeof(sensor_telemetry));
+
 	/* Now read the sensors until we get an interrupt to exit */
 	while (1) {
 		time_t now = time(0);
@@ -329,6 +332,9 @@ void signal_load_config (int sig) {
 int read_sensors(uint32_t now) {
 	sensor_telemetry.timestamp = now;
 	/* Read the PI sensors */
+
+	mic_read_data(&sensor_telemetry);
+exit(0);
 	short val;
 	int rc;
 	rc = adc_read(ADC_METHANE_CHAN, &val);
