@@ -40,6 +40,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 #include "config.h"
 #include "state_file.h"
@@ -54,6 +55,7 @@
 #include "IMU.h"
 #include "TCS34087.h"
 #include "ultrasonic_mic.h"
+#include "cosmic_watch.h"
 //#include "dfrobot_gas.h"
 
 #define MAX_FILE_PATH_LEN 256
@@ -109,6 +111,9 @@ int calibrate_with_dfrobot_sensor = 0;
 
 time_t last_time_checked_rt = 0;
 time_t last_time_checked_wod = 0;
+
+pthread_t cw1_listen_pthread = 0;
+
 
 /* Temperature compensation table for O2 saensor */
 #define O2_TEMPERATURE_TABLE_LEN 6
@@ -246,6 +251,21 @@ int main(int argc, char *argv[]) {
 
 	debug_print("Telem Length: %ld bytes\n", sizeof(sensor_telemetry));
 
+
+	/**
+	 * Start a thread to listen to the Costmic watch.  This will write all received data into
+	 * a file.  This thread runs in the background and is always ready to
+	 * receive data from the Cosmic Watch.
+	 */
+	char *name = "CW1 Listen Thread";
+	int thread_rc = pthread_create( &cw1_listen_pthread, NULL, cw_listen_process, (void*) name);
+	if (thread_rc != EXIT_SUCCESS) {
+		// TODO CALL THE CORERCT error here
+		log_err(g_log_filename, IORS_ERR_TNC_FAILURE);
+		error_print("Could not start the CW1 listen thread.\n");
+	}
+
+
 	/* Now read the sensors until we get an interrupt to exit */
 	while (1) {
 		time_t now = time(0);
@@ -333,8 +353,9 @@ int read_sensors(uint32_t now) {
 	sensor_telemetry.timestamp = now;
 	/* Read the PI sensors */
 
-	mic_read_data(&sensor_telemetry);
-exit(0);
+//	mic_read_data(&sensor_telemetry);
+//	cwatch_read_data(&sensor_telemetry);
+
 	short val;
 	int rc;
 	rc = adc_read(ADC_METHANE_CHAN, &val);

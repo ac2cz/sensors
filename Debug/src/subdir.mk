@@ -8,6 +8,7 @@ C_SRCS += \
 ../src/LPS22HB.c \
 ../src/SHTC3.c \
 ../src/config.c \
+../src/cosmic_watch.c \
 ../src/dfrobot_gas.c \
 ../src/sensors.c \
 ../src/serial_util.c \
@@ -20,6 +21,7 @@ C_DEPS += \
 ./src/LPS22HB.d \
 ./src/SHTC3.d \
 ./src/config.d \
+./src/cosmic_watch.d \
 ./src/dfrobot_gas.d \
 ./src/sensors.d \
 ./src/serial_util.d \
@@ -32,6 +34,7 @@ OBJS += \
 ./src/LPS22HB.o \
 ./src/SHTC3.o \
 ./src/config.o \
+./src/cosmic_watch.o \
 ./src/dfrobot_gas.o \
 ./src/sensors.o \
 ./src/serial_util.o \
@@ -52,7 +55,7 @@ src/%.o: ../src/%.c src/subdir.mk
 clean: clean-src
 
 clean-src:
-	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/config.d ./src/config.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/serial_util.d ./src/serial_util.o ./src/state_file.d ./src/state_file.o ./src/ultrasonic_mic.d ./src/ultrasonic_mic.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
+	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/config.d ./src/config.o ./src/cosmic_watch.d ./src/cosmic_watch.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/serial_util.d ./src/serial_util.o ./src/state_file.d ./src/state_file.o ./src/ultrasonic_mic.d ./src/ultrasonic_mic.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
 
 .PHONY: clean-src
 

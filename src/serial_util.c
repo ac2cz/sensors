@@ -19,11 +19,10 @@
 #include "debug.h"
 
 /* Forward Declarations */
-int open_serial(char *devicename);
-void close_serial(int fd);
 
-int serial_send_cmd(char *serialdev, char * data, int len, unsigned char *response, int rlen) {
-	int fd = open_serial(serialdev);
+
+int serial_send_cmd(char *serialdev, speed_t speed, char * data, int len, unsigned char *response, int rlen) {
+	int fd = open_serial(serialdev, speed);
 	if (!fd) {
 		error_print("Error while initializing %s.\n", serialdev);
 		return -1;
@@ -37,9 +36,8 @@ int serial_send_cmd(char *serialdev, char * data, int len, unsigned char *respon
 		close_serial(fd);
 		return -1;
 	}
-	//		else {
-	//			debug_print("Wrote %d bytes\n",p);
-	//		}
+
+	// TODO - this delay not needed if it is not the radio?
 	usleep(200*1000);   //// Hmm, this delay seems to be critical, suggesting radio is slow or we do not have flow control setup correctly
 	//		debug_print("Response:");
 	int n = read(fd, response, rlen);
@@ -53,11 +51,29 @@ int serial_send_cmd(char *serialdev, char * data, int len, unsigned char *respon
 		close_serial(fd);
 		return 1;
 	}
-	//		int b = 0;
-	//		if (n < rlen) {
-	//			// try to read some more
-	//			b = read(fd, response+n, rlen-n);
-	//		}
+
+	response[n] = 0; // terminate the string
+	usleep(50*1000);
+
+	close_serial(fd);
+	usleep(50*1000);
+	return n;
+}
+
+int serial_read_data(char *serialdev, speed_t speed, unsigned char *response, int rlen) {
+	int fd = open_serial(serialdev, speed);
+	if (!fd) {
+		error_print("Error while initializing %s.\n", serialdev);
+		return -1;
+	}
+	tcflush(fd,TCIOFLUSH );
+
+	int n = read(fd, response, rlen);
+	if (n < 0) {
+		debug_print ("Error: %s, reading data\n", strerror(errno));
+		close_serial(fd);
+		return 1;
+	}
 	response[n] = 0; // terminate the string
 	usleep(50*1000);
 	/*
@@ -75,7 +91,8 @@ int serial_send_cmd(char *serialdev, char * data, int len, unsigned char *respon
 	return n;
 }
 
-int open_serial(char *devicename) {
+
+int open_serial(char *devicename, speed_t speed) {
 	int fd;
 	struct termios options;
 
@@ -93,11 +110,11 @@ int open_serial(char *devicename) {
 	/*
 	 * Set the baud rates to 9600, which is the default for the serial connection
 	 */
-	if (cfsetispeed(&options, B38400) == -1) {
+	if (cfsetispeed(&options, speed) == -1) {
 		error_print("mic_open_serial(): cfsetispeed()");
 		return 0;
 	}
-	if (cfsetospeed(&options, B38400) == -1) {
+	if (cfsetospeed(&options, speed) == -1) {
 		error_print("mic_open_serial(): cfsetospeed()");
 		return 0;
 	}
