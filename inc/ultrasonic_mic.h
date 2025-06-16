@@ -8,7 +8,7 @@
 #ifndef ULTRASONIC_MIC_H_
 #define ULTRASONIC_MIC_H_
 
-#define RESPONSE_LEN 256
+#define MIC_RESPONSE_LEN 256
 
 #include "sensor_telemetry.h"
 

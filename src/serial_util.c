@@ -60,36 +60,96 @@ int serial_send_cmd(char *serialdev, speed_t speed, char * data, int len, unsign
 	return n;
 }
 
-int serial_read_data(char *serialdev, speed_t speed, unsigned char *response, int rlen) {
-	int fd = open_serial(serialdev, speed);
-	if (!fd) {
-		error_print("Error while initializing %s.\n", serialdev);
-		return -1;
-	}
-	tcflush(fd,TCIOFLUSH );
 
-	int n = read(fd, response, rlen);
-	if (n < 0) {
-		debug_print ("Error: %s, reading data\n", strerror(errno));
-		close_serial(fd);
-		return 1;
-	}
-	response[n] = 0; // terminate the string
-	usleep(50*1000);
-	/*
-			int i;
-			for (i=0; i< n; i++) {
-	//			debug_print("%c",response[i]);
-									debug_print(" %0x",response[i] & 0xff);
-			}
-			debug_print("\n");
-	 */
+/**
+ * Read a complete line from serial port
+ * @param fd File descriptor of the serial port
+ * @param buffer Buffer to store the line
+ * @param buffer_size Size of the buffer
+ * @param line_terminator Character that terminates a line (usually '\n' or '\r')
+ * @return Number of characters read (excluding terminator), -1 on error, -2 on timeout
+ */
+int read_serial_line(char *serialdev, speed_t speed, char *buffer, size_t buffer_size, char line_terminator) {
+    if (!buffer || buffer_size == 0) {
+        errno = EINVAL;
+        return -1;
+    }
 
-	//		set_rts(g_serial_fd, 0);
-	close_serial(fd);
-	usleep(50*1000);
-	return n;
+    int fd = open_serial(serialdev, speed);
+    if (!fd) {
+    	error_print("Error while initializing %s.\n", serialdev);
+    	return -1;
+    }
+    tcflush(fd,TCIOFLUSH );
+
+    size_t pos = 0;
+    char ch;
+    ssize_t bytes_read;
+
+    // Clear the buffer
+    memset(buffer, 0, buffer_size);
+
+    while (pos < buffer_size - 1) { // Leave space for null terminator
+        bytes_read = read(fd, &ch, 1);
+        if (bytes_read < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+//                // Timeout occurred
+//            	close_serial(fd);
+//                return -2;
+            	usleep(10);
+            	continue;
+            } else {
+                // Read error
+                perror("read");
+                close_serial(fd);
+                return -1;
+            }
+        } else if (bytes_read == 0) {
+            // Timeout (no data available) - or end of file?
+        	close_serial(fd);
+            return -3;
+        }
+
+        // Check for line terminator
+        if (ch == line_terminator) {
+            buffer[pos] = '\0'; // Null-terminate the string
+            close_serial(fd);
+            return (int)pos; // Return number of characters read
+        }
+
+        // Add character to buffer
+        buffer[pos++] = ch;
+    }
+
+    // Buffer full without finding terminator
+    buffer[buffer_size - 1] = '\0';
+    errno = ENOBUFS;
+    close_serial(fd);
+    return -4;
 }
+
+
+
+//int serial_read_data(char *serialdev, speed_t speed, unsigned char *response, int rlen) {
+//	int fd = open_serial(serialdev, speed);
+//	if (!fd) {
+//		error_print("Error while initializing %s.\n", serialdev);
+//		return -1;
+//	}
+//	tcflush(fd,TCIOFLUSH );
+//
+//	int n = read(fd, response, rlen);
+//	if (n < 0) {
+//		debug_print ("Error: %s, reading data\n", strerror(errno));
+//		close_serial(fd);
+//		return 1;
+//	}
+//	response[n] = 0; // terminate the string
+//	usleep(50*1000);
+//	close_serial(fd);
+//	usleep(50*1000);
+//	return n;
+//}
 
 
 int open_serial(char *devicename, speed_t speed) {
@@ -98,12 +158,12 @@ int open_serial(char *devicename, speed_t speed) {
 
 	/* NOCTTY means we are not a terminal and dont want control codes.  NDELAY means we dont care about the state of the DCD line */
 	if ((fd = open(devicename, O_RDWR | O_NOCTTY | O_NDELAY)) == -1) {
-		error_print("mic_open_serial(): open()");
+		error_print("open() %s\n",devicename);
 		return 0;
 	}
 
 	if (tcgetattr(fd, &options) == -1) {
-		error_print("mic_open_serial(): tcgetattr()");
+		error_print("open_serial(): tcgetattr() %s\n",devicename);
 		return 0;
 	}
 
@@ -111,11 +171,11 @@ int open_serial(char *devicename, speed_t speed) {
 	 * Set the baud rates to 9600, which is the default for the serial connection
 	 */
 	if (cfsetispeed(&options, speed) == -1) {
-		error_print("mic_open_serial(): cfsetispeed()");
+		error_print("open_serial(): cfsetispeed() %s\n",devicename);
 		return 0;
 	}
 	if (cfsetospeed(&options, speed) == -1) {
-		error_print("mic_open_serial(): cfsetospeed()");
+		error_print("open_serial(): cfsetospeed() %s\n",devicename);
 		return 0;
 	}
 
@@ -144,7 +204,7 @@ int open_serial(char *devicename, speed_t speed) {
 	 * Set the new options for the port...
 	 */
 	if (tcsetattr(fd, TCSANOW, &options) == -1) { //TCSANOW constant specifies that all changes should occur immediatel
-		error_print("mic_open_serial: tcsetattr()\n");
+		error_print("open_serial: tcsetattr() %s\n",devicename);
 		close_serial(fd);
 	}
 	return fd;
@@ -152,5 +212,5 @@ int open_serial(char *devicename, speed_t speed) {
 
 void close_serial(int fd) {
 	if (close(fd) < 0)
-		error_print("closeserial()");
+		error_print("closeserial()\n");
 }

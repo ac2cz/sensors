@@ -8,6 +8,22 @@
 #ifndef COSMIC_WATCH_H_
 #define COSMIC_WATCH_H_
 
-void *cw_listen_process(void * arg);
+#include <stdint.h>
+
+#define CW_RESPONSE_LEN 1024
+
+typedef struct cw_data {
+	char master_slave[2];
+    uint16_t event_num; /* The event number */
+    uint32_t time_ms;  /* Time in ms since we started.  Used for coincidence and later analysis. */
+    float count_avg;  /* The running average of counts since we started this run */
+   // float count_std; /* The standard deviation of counts since we started this run */
+    float sipm_voltage; /* The voltage from the scintilator block, scaled from the ADC reading with a lookup table */
+    uint32_t deadtime_ms; /* The deadtime */
+    float temperature_deg_c; /* The temperature in degrees C */
+} cw_data_t;
+
+void *cw1_listen_process(void * arg);
+void *cw2_listen_process(void * arg);
 
 #endif /* COSMIC_WATCH_H_ */

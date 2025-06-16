@@ -359,7 +359,7 @@ unsigned char QMI8658_init(void)
 	}
 	else
 	{
-		QMI8658_printf("QMI8658_init fail\n");
+		//MI8658_printf("QMI8658_init fail\n");
 		QMI8658_chip_id = 0;
 		return 0;
 	}

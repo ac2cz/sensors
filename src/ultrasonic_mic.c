@@ -19,13 +19,14 @@
 
 /* Forward declarations */
 
+int mic_listen_thread_called = false;
 
 int mic_read_data(sensor_telemetry_t *sensor_telemetry) {
-	unsigned char response[RESPONSE_LEN];
+	unsigned char response[MIC_RESPONSE_LEN];
 	char * cmd = "D";
 	int cmd_len = 1;
 
-	int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, RESPONSE_LEN);
+	int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, MIC_RESPONSE_LEN);
 	debug_print("%s\n",response);
 	int i;
 	sensor_telemetry->microphone_valid = 1;
@@ -35,6 +36,47 @@ int mic_read_data(sensor_telemetry_t *sensor_telemetry) {
 	}
 	debug_print("\n");
 	return rc;
+}
+
+/**
+ * This process is run for ultrasonic mic.  It listens to a serial port and collects the data that is received.
+ * It writes the data into the relavant parts of the telemetry structure.  It appends all of the data to a
+ * file.
+ *
+ * Data is sent in from the Mic in the following format:
+ *
+ *
+ */
+void *mic_listen_process(void * arg) {
+	char response[MIC_RESPONSE_LEN];
+
+	char *name;
+	name = (char *) arg;
+	if (mic_listen_thread_called) {
+		error_print("Thread already started.  Exiting: %s\n", name);
+	}
+	mic_listen_thread_called = true;
+	//debug_print("Starting Thread: %s\n", name);
+
+	while (mic_listen_thread_called) {
+		// Test that we can open the serial, otherwise we get errors continually
+		int fd = open_serial(g_mic_serial_dev, B38400);
+		if (fd) {
+			tcflush(fd,TCIOFLUSH );
+			while (1) {
+				if (g_verbose) debug_print("Waiting for mic..\n");
+				mic_read_data(&g_sensor_telemetry);
+			}
+			close_serial(fd);
+		} else {
+			if (g_verbose)
+				error_print("Error while initializing %s.\n", g_mic_serial_dev);
+			mic_listen_thread_called = false;
+		}
+	}
+
+	mic_listen_thread_called = false;
+	return NULL;
 }
 
 

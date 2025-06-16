@@ -56,7 +56,7 @@
 #include "TCS34087.h"
 #include "ultrasonic_mic.h"
 #include "cosmic_watch.h"
-//#include "dfrobot_gas.h"
+#include "dfrobot_gas.h"
 
 #define MAX_FILE_PATH_LEN 256
 #define ADC_O2_CHAN 2
@@ -80,6 +80,9 @@ char g_cw1_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial1"; // device name for th
 char g_cw2_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial2"; // device name for the serial port for cosmic watch
 char g_rt_telem_path[MAX_FILE_PATH_LEN] = "rt_telemetry.dat";
 char g_wod_telem_path[MAX_FILE_PATH_LEN] = "wod_telemetry.dat";
+char g_cw1_log_path[MAX_FILE_PATH_LEN] = "cw1_log.dat";
+char g_cw2_log_path[MAX_FILE_PATH_LEN] = "cw2_log.dat";
+char g_mic_log_path[MAX_FILE_PATH_LEN] = "mic_log.dat";
 
 /* These global variables are in the state file and are resaved when changed.  These default values are
  * overwritten when the state file is loaded */
@@ -100,7 +103,7 @@ double linear_interpolation(double x, double x0, double x1, double y0, double y1
 /* Local Variables */
 char config_file_name[MAX_FILE_PATH_LEN] = "sensors.config";
 char data_folder_path[MAX_FILE_PATH_LEN] = "./pacsat";
-static sensor_telemetry_t sensor_telemetry;
+sensor_telemetry_t g_sensor_telemetry;
 //int PERIOD=10;
 //char filename[MAX_FILE_PATH_LEN];
 int co2_status = false;
@@ -113,6 +116,7 @@ time_t last_time_checked_rt = 0;
 time_t last_time_checked_wod = 0;
 
 pthread_t cw1_listen_pthread = 0;
+pthread_t cw2_listen_pthread = 0;
 
 
 /* Temperature compensation table for O2 saensor */
@@ -178,8 +182,6 @@ int main(int argc, char *argv[]) {
 	load_config(config_file_name);
 	load_state("sensors.state");
 
-
-
 	char rt_telem_path[MAX_FILE_PATH_LEN];
 	strlcpy(rt_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
 	strlcat(rt_telem_path,"/",MAX_FILE_PATH_LEN);
@@ -193,7 +195,6 @@ int main(int argc, char *argv[]) {
 	strlcat(wod_telem_path,g_wod_telem_path,MAX_FILE_PATH_LEN);
 
 	char log_path[MAX_FILE_PATH_LEN];
-	//make_dir_path(get_folder_str(FolderLog), data_folder_path, data_folder_path, log_path);
 	strlcpy(log_path, data_folder_path,MAX_FILE_PATH_LEN);
 	strlcat(log_path,"/",MAX_FILE_PATH_LEN);
 	strlcat(log_path,get_folder_str(FolderLog),MAX_FILE_PATH_LEN);
@@ -221,6 +222,8 @@ int main(int argc, char *argv[]) {
 	 * Gyro 32dps
 	 * Mag is -4912 to 4912uT, for 2s complement 16 bit result */
 	imu_status = imuInit();
+	if (g_verbose)
+		if (imu_status == false) printf("QMI8658_init fail\n");
 	//	debug_print("IMU State: %d\n",g_imu_state);
 
 	// TODO - this should come from command line so iors_control can activate it or not
@@ -249,20 +252,23 @@ int main(int argc, char *argv[]) {
 	char tmp_filename[MAX_FILE_PATH_LEN];
 	log_make_tmp_filename(rt_telem_path, tmp_filename);
 
-	debug_print("Telem Length: %ld bytes\n", sizeof(sensor_telemetry));
+	debug_print("Telem Length: %ld bytes\n", sizeof(g_sensor_telemetry));
 
 
 	/**
-	 * Start a thread to listen to the Costmic watch.  This will write all received data into
+	 * Start a thread to listen to the Cosmic watch.  This will write all received data into
 	 * a file.  This thread runs in the background and is always ready to
 	 * receive data from the Cosmic Watch.
 	 */
-	char *name = "CW1 Listen Thread";
-	int thread_rc = pthread_create( &cw1_listen_pthread, NULL, cw_listen_process, (void*) name);
+	int thread_rc = pthread_create( &cw1_listen_pthread, NULL, cw1_listen_process, (void*) data_folder_path);
 	if (thread_rc != EXIT_SUCCESS) {
-		// TODO CALL THE CORERCT error here
-		log_err(g_log_filename, IORS_ERR_TNC_FAILURE);
-		error_print("Could not start the CW1 listen thread.\n");
+			log_err(g_log_filename, SENSOR_ERR_CW_FAILURE);
+			error_print("Could not start the CW1 listen thread.\n");
+		}
+	int thread2_rc = pthread_create( &cw2_listen_pthread, NULL, cw2_listen_process, (void*) data_folder_path);
+	if (thread2_rc != EXIT_SUCCESS) {
+		log_err(g_log_filename, SENSOR_ERR_CW_FAILURE);
+		error_print("Could not start the CW2 listen thread.\n");
 	}
 
 
@@ -274,11 +280,11 @@ int main(int argc, char *argv[]) {
 		if ((now - last_time_checked_rt) > g_state_period_to_send_telem_in_seconds) {
 			last_time_checked_rt = now;
 
-			uint8_t * data = (unsigned char *)&sensor_telemetry;
+			uint8_t * data = (unsigned char *)&g_sensor_telemetry;
 			FILE * outfile = fopen(tmp_filename, "wb");
 			if (outfile != NULL) {
 				/* Save the telemetry bytes */
-				for (int i=0; i<sizeof(sensor_telemetry); i++) {
+				for (int i=0; i<sizeof(g_sensor_telemetry); i++) {
 					int c = fputc(data[i],outfile);
 					if (c == EOF) {
 						fclose(outfile);
@@ -299,7 +305,7 @@ int main(int argc, char *argv[]) {
 		if ((now - last_time_checked_wod) > g_state_period_to_store_wod_in_seconds) {
 			last_time_checked_wod = now;
 
-			int rc = log_append(wod_telem_path,(unsigned char *)&sensor_telemetry, sizeof(sensor_telemetry));
+			int rc = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
 			if (rc != EXIT_SUCCESS) {
 				if (g_verbose)
 					printf("ERROR, could not save data to filename: %s\n",g_wod_telem_path);
@@ -350,11 +356,10 @@ void signal_load_config (int sig) {
 }
 
 int read_sensors(uint32_t now) {
-	sensor_telemetry.timestamp = now;
+	g_sensor_telemetry.timestamp = now;
 	/* Read the PI sensors */
 
 //	mic_read_data(&sensor_telemetry);
-//	cwatch_read_data(&sensor_telemetry);
 
 	short val;
 	int rc;
@@ -362,11 +367,11 @@ int read_sensors(uint32_t now) {
 	if (rc != EXIT_SUCCESS) {
 		if (g_verbose)
 			printf("Could not open MQ-6 Methane sensor ADC channel %d\n",ADC_METHANE_CHAN);
-		sensor_telemetry.methane_conc = 0;
-		sensor_telemetry.methane_sensor_valid = 0;
+		g_sensor_telemetry.methane_conc = 0;
+		g_sensor_telemetry.methane_sensor_valid = 0;
 	} else {
-		sensor_telemetry.methane_conc = val;
-		sensor_telemetry.methane_sensor_valid = 1;
+		g_sensor_telemetry.methane_conc = val;
+		g_sensor_telemetry.methane_sensor_valid = 1;
 		if (g_verbose)
 			printf("MQ-6 Methane: %d,",val);
 	}
@@ -375,13 +380,13 @@ int read_sensors(uint32_t now) {
 	if (rc != EXIT_SUCCESS) {
 		if (g_verbose)
 			printf("Could not open MQ-135 Air Quality ADC channel %d\n",ADC_AIR_QUALITY_CHAN);
-		sensor_telemetry.air_quality = 0;
-		sensor_telemetry.air_q_sensor_valid = 0;
+		g_sensor_telemetry.air_quality = 0;
+		g_sensor_telemetry.air_q_sensor_valid = 0;
 	} else {
 		if (g_verbose)
 			printf("MQ-135 Air Q: %d\n",val);
-		sensor_telemetry.air_quality = val;
-		sensor_telemetry.air_q_sensor_valid = 1;
+		g_sensor_telemetry.air_quality = val;
+		g_sensor_telemetry.air_q_sensor_valid = 1;
 	}
 
 	rc = adc_read(ADC_BUS_V_CHAN, &val);
@@ -389,7 +394,7 @@ int read_sensors(uint32_t now) {
 		if (g_verbose)
 			printf("Could not open Bus Voltage sensor ADC channel %d\n",ADC_BUS_V_CHAN);
 	} else {
-		sensor_telemetry.pi_bus_v = val;
+		g_sensor_telemetry.pi_bus_v = val;
 		if (g_verbose)
 			printf("PI Bus (5V): %0.0fmV,",2*val*0.125);
 	}
@@ -401,8 +406,8 @@ int read_sensors(uint32_t now) {
 		if (g_verbose)
 			printf("Could not open SHTC3 Temperature sensor\n");
 	} else {
-		sensor_telemetry.SHTC3_temp = temperature;
-		sensor_telemetry.SHTC3_humidity = humidity;
+		g_sensor_telemetry.SHTC3_temp = temperature;
+		g_sensor_telemetry.SHTC3_humidity = humidity;
 
 		float TH_Value, RH_Value;
 		TH_Value = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
@@ -418,8 +423,8 @@ int read_sensors(uint32_t now) {
 		if (g_verbose)
 			printf("Could not open LPS22 Pressure sensor\n");
 	} else {
-		sensor_telemetry.LPS22_pressure = pressure;
-		sensor_telemetry.LPS22_temp = lps22_temperature;
+		g_sensor_telemetry.LPS22_pressure = pressure;
+		g_sensor_telemetry.LPS22_temp = lps22_temperature;
 		if (g_verbose)
 			printf("Pressure = %6.3f hPa, Temperature = %6.2f °C\n", pressure/4096.0, lps22_temperature/100.0);
 	}
@@ -436,16 +441,16 @@ int read_sensors(uint32_t now) {
 			printf("Gyroscope: X: %d     Y: %d     Z: %d \n",stGyroRawData.s16X, stGyroRawData.s16Y, stGyroRawData.s16Z);
 			printf("Magnetic: X: %d     Y: %d     Z: %d \n",stMagnRawData.s16X, stMagnRawData.s16Y, stMagnRawData.s16Z);
 		}
-		sensor_telemetry.AccelerationX = stAccelRawData.s16X;
-		sensor_telemetry.AccelerationY = stAccelRawData.s16Y;
-		sensor_telemetry.AccelerationZ = stAccelRawData.s16Z;
-		sensor_telemetry.GyroX = stGyroRawData.s16X;
-		sensor_telemetry.GyroY = stGyroRawData.s16Y;
-		sensor_telemetry.GyroZ = stGyroRawData.s16Z;
-		sensor_telemetry.MagX = stMagnRawData.s16X;
-		sensor_telemetry.MagY = stMagnRawData.s16Y;
-		sensor_telemetry.MagZ = stMagnRawData.s16Z;
-		sensor_telemetry.IHUTemp = QMI8658_readTemp();
+		g_sensor_telemetry.AccelerationX = stAccelRawData.s16X;
+		g_sensor_telemetry.AccelerationY = stAccelRawData.s16Y;
+		g_sensor_telemetry.AccelerationZ = stAccelRawData.s16Z;
+		g_sensor_telemetry.GyroX = stGyroRawData.s16X;
+		g_sensor_telemetry.GyroY = stGyroRawData.s16Y;
+		g_sensor_telemetry.GyroZ = stGyroRawData.s16Z;
+		g_sensor_telemetry.MagX = stMagnRawData.s16X;
+		g_sensor_telemetry.MagY = stMagnRawData.s16Y;
+		g_sensor_telemetry.MagZ = stMagnRawData.s16Z;
+		g_sensor_telemetry.IHUTemp = QMI8658_readTemp();
 	}
 
 	/* Read the sound sensor */
@@ -525,7 +530,7 @@ int read_sensors(uint32_t now) {
 
 			printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
 		}
-		sensor_telemetry.O2_conc = (short)avg;
+		g_sensor_telemetry.O2_conc = (short)avg;
 	}
 
 	/* If we are calibrating the O2 sensor then output values from dfrobot sensor if connected */
@@ -548,8 +553,8 @@ int read_sensors(uint32_t now) {
 			printf("RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
 				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, rgb.C,level);
 
-		sensor_telemetry.light_level = level;
-        sensor_telemetry.light_RGB = RGB888;
+		g_sensor_telemetry.light_level = level;
+        g_sensor_telemetry.light_RGB = RGB888;
 
 	}
 	return EXIT_SUCCESS;
