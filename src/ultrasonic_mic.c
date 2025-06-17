@@ -21,18 +21,26 @@
 
 int mic_listen_thread_called = false;
 
-int mic_read_data(sensor_telemetry_t *sensor_telemetry) {
+/**
+ * This reads the Data via serial from the Pi Pico ultrasonic mic.
+ * The data is in the following format:
+ * D nn,B0B1....Bnn
+ *
+ * Where nn is the number of bins in the FFT.  Each bin is a byte of data.  It is sent as raw bytes.
+ * By default the FFT length 64 and there are 32 bins in the result
+ *
+ */
+int mic_read_data() {
 	unsigned char response[MIC_RESPONSE_LEN];
 	char * cmd = "D";
 	int cmd_len = 1;
 
 	int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, MIC_RESPONSE_LEN);
-	debug_print("%s\n",response);
+	//debug_print("%s\n",response);
 	int i;
-	sensor_telemetry->microphone_valid = 1;
 	for (i=0; i<32; i++) {
-		sensor_telemetry->sound_psd[i] = response[i+5];
-		//debug_print("%d:%d, ", i*250/64,response[i+5]);
+		mic_data.sound_psd[i] = response[i+5];
+		debug_print("%d:%d, ", i*250/64,response[i+5]);
 	}
 	debug_print("\n");
 	return rc;
@@ -48,8 +56,6 @@ int mic_read_data(sensor_telemetry_t *sensor_telemetry) {
  *
  */
 void *mic_listen_process(void * arg) {
-	char response[MIC_RESPONSE_LEN];
-
 	char *name;
 	name = (char *) arg;
 	if (mic_listen_thread_called) {

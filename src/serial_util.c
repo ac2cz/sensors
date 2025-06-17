@@ -41,11 +41,6 @@ int serial_send_cmd(char *serialdev, speed_t speed, char * data, int len, unsign
 	usleep(200*1000);   //// Hmm, this delay seems to be critical, suggesting radio is slow or we do not have flow control setup correctly
 	//		debug_print("Response:");
 	int n = read(fd, response, rlen);
-	if (response[0] == '?') {
-		debug_print("Mic Command failed\n");
-		close_serial(fd);
-		return -1;
-	}
 	if (n < 0) {
 		debug_print ("error %d reading data\n", errno);
 		close_serial(fd);

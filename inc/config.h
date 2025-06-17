@@ -24,6 +24,8 @@
 
 #include "common_config.h"
 #include "sensor_telemetry.h"
+#include "cosmic_watch.h"
+#include "ultrasonic_mic.h"
 
 #define VERSION __DATE__ " ARISS Sensors - Version 0.1a"
 
@@ -32,6 +34,9 @@ extern int g_run_self_test;    /* true when the self test is running */
 extern int g_verbose;          /* print verbose output when set */
 extern char g_log_filename[MAX_FILE_PATH_LEN];
 extern sensor_telemetry_t g_sensor_telemetry;
+extern cw_data_t cw_raw_data;
+extern cw_data_t cw_coincident_data;
+extern mic_data_t mic_data;
 
 /* Define paramaters for config file - these are declared here and defined in sensors.c*/
 #define MAX_CONFIG_LINE_LENGTH 128

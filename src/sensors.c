@@ -73,6 +73,10 @@
 int g_run_self_test;    /* true when the self test is running */
 int g_verbose = false;
 char g_log_filename[MAX_FILE_PATH_LEN];
+sensor_telemetry_t g_sensor_telemetry;
+cw_data_t cw_raw_data; // This is raw data from one of the detectors
+cw_data_t cw_coincident_data; // This is the co-incident data
+mic_data_t mic_data;
 
 /* These global variables are in the config file */
 char g_mic_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial0"; // device name for the serial port for ultrasonic mic
@@ -117,7 +121,7 @@ time_t last_time_checked_wod = 0;
 
 pthread_t cw1_listen_pthread = 0;
 pthread_t cw2_listen_pthread = 0;
-
+pthread_t mic_listen_pthread = 0;
 
 /* Temperature compensation table for O2 saensor */
 #define O2_TEMPERATURE_TABLE_LEN 6
@@ -254,7 +258,6 @@ int main(int argc, char *argv[]) {
 
 	debug_print("Telem Length: %ld bytes\n", sizeof(g_sensor_telemetry));
 
-
 	/**
 	 * Start a thread to listen to the Cosmic watch.  This will write all received data into
 	 * a file.  This thread runs in the background and is always ready to
@@ -271,11 +274,34 @@ int main(int argc, char *argv[]) {
 		error_print("Could not start the CW2 listen thread.\n");
 	}
 
+//	int thread3_rc = pthread_create( &mic_listen_pthread, NULL, mic_listen_process, (void*) data_folder_path);
+//	if (thread3_rc != EXIT_SUCCESS) {
+//		log_err(g_log_filename, SENSOR_ERR_MIC_FAILURE);
+//		error_print("Could not start the MIC listen thread.\n");
+//	}
 
 	/* Now read the sensors until we get an interrupt to exit */
 	while (1) {
 		time_t now = time(0);
 		read_sensors(now);
+		mic_read_data();
+
+		//TODO - some sort of locks here to make sure we get valid data and wait if it is currently being written.
+
+		/* Put in latest data from the CosmicWatches if we have it */
+		g_sensor_telemetry.cw_raw_valid = true;
+		g_sensor_telemetry.cw_coincident_valid = true;
+		g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
+		g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
+		g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;
+		g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg;
+
+		/* Put in latest data from the Mic if we have it */
+		g_sensor_telemetry.microphone_valid = 1;
+		int i = 0;
+		for (i=0; i<32; i++) {
+			g_sensor_telemetry.sound_psd[i] = mic_data.sound_psd[i];
+		}
 
 		if ((now - last_time_checked_rt) > g_state_period_to_send_telem_in_seconds) {
 			last_time_checked_rt = now;
@@ -283,7 +309,7 @@ int main(int argc, char *argv[]) {
 			uint8_t * data = (unsigned char *)&g_sensor_telemetry;
 			FILE * outfile = fopen(tmp_filename, "wb");
 			if (outfile != NULL) {
-				/* Save the telemetry bytes */
+				/* Save the realtime telemetry bytes into a tmp file then rename it.  This makes the write atomic */
 				for (int i=0; i<sizeof(g_sensor_telemetry); i++) {
 					int c = fputc(data[i],outfile);
 					if (c == EOF) {
