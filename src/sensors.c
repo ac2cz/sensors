@@ -7,15 +7,17 @@
  Description : Student On Orbit Sensor System Main
  ============================================================================
 
- This program reads the Student On Orbit Sensor system and writes the data to two files.
+ This program reads the Student On Orbit Sensor system and writes the data to several files.
  - The RT telemetry file, which contains one line of data and is overwritten with new data
  - The WOD telemetry file, which is appended until the file is rolled or a max size as
    a safety precaution.
+ - A file for events from the CosmicWatch
+ - A file for detailed data from the Ultrasonic Microphone
 
- Fixed settings are stored in the config file
+ Fixed settings are stored in the sensors.config file
  Volatile settings are stored in the state file.  This file can be updated by iors_control
  based on commands from the ground, the UI or for other operational reasons.  This file is
- read each te;emtry cycle so that the latest changes are applied.
+ read each cycle so that the latest changes are applied.
 
  The file names are in the config file and write data to a temporary file until we are
  ready to copy it to a final file.
@@ -106,7 +108,7 @@ double linear_interpolation(double x, double x0, double x1, double y0, double y1
 
 /* Local Variables */
 char config_file_name[MAX_FILE_PATH_LEN] = "sensors.config";
-char data_folder_path[MAX_FILE_PATH_LEN] = "./pacsat";
+char data_folder_path[MAX_FILE_PATH_LEN] = "/ariss";
 sensor_telemetry_t g_sensor_telemetry;
 //int PERIOD=10;
 //char filename[MAX_FILE_PATH_LEN];
@@ -256,7 +258,7 @@ int main(int argc, char *argv[]) {
 	char tmp_filename[MAX_FILE_PATH_LEN];
 	log_make_tmp_filename(rt_telem_path, tmp_filename);
 
-	debug_print("Telem Length: %ld bytes\n", sizeof(g_sensor_telemetry));
+	debug_print("RT Telem: %s - Length: %ld bytes\n", rt_telem_path, sizeof(g_sensor_telemetry));
 
 	/**
 	 * Start a thread to listen to the Cosmic watch.  This will write all received data into
@@ -282,6 +284,7 @@ int main(int argc, char *argv[]) {
 
 	/* Now read the sensors until we get an interrupt to exit */
 	while (1) {
+		load_state("sensors.state"); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
 		time_t now = time(0);
 		read_sensors(now);
 		mic_read_data();
