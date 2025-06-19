@@ -112,6 +112,7 @@ void *cw1_listen_process(void * arg) {
 	data_folder_path = (char *) arg;
 	if (cw1_listen_thread_called) {
 		error_print("CW1 Thread already started.  Exiting: %s\n", data_folder_path);
+		return NULL;
 	}
 	cw1_listen_thread_called = true;
 	//debug_print("Starting Thread: %s\n", name);
@@ -125,6 +126,7 @@ void *cw2_listen_process(void * arg) {
 	data_folder_path = (char *) arg;
 	if (cw2_listen_thread_called) {
 		error_print("CW2 Thread already started.  Exiting: %s\n", data_folder_path);
+		return NULL;
 	}
 	cw2_listen_thread_called = true;
 	//debug_print("Starting Thread: %s\n", name);

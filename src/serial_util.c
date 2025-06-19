@@ -24,7 +24,7 @@
 int serial_send_cmd(char *serialdev, speed_t speed, char * data, int len, unsigned char *response, int rlen) {
 	int fd = open_serial(serialdev, speed);
 	if (!fd) {
-		error_print("Error while initializing %s.\n", serialdev);
+		//error_print("Error while initializing %s.\n", serialdev);
 		return -1;
 	}
 	tcflush(fd,TCIOFLUSH );
@@ -153,7 +153,7 @@ int open_serial(char *devicename, speed_t speed) {
 
 	/* NOCTTY means we are not a terminal and dont want control codes.  NDELAY means we dont care about the state of the DCD line */
 	if ((fd = open(devicename, O_RDWR | O_NOCTTY | O_NDELAY)) == -1) {
-		error_print("open() %s\n",devicename);
+		error_print("Could not open: %s\n",devicename);
 		return 0;
 	}
 

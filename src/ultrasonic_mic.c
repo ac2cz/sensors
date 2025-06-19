@@ -37,53 +37,54 @@ int mic_read_data() {
 
 	int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, MIC_RESPONSE_LEN);
 	//debug_print("%s\n",response);
-	int i;
-	for (i=0; i<32; i++) {
-		mic_data.sound_psd[i] = response[i+5];
-		debug_print("%d:%d, ", i*250/64,response[i+5]);
+	if (rc > 0) {
+		int i;
+		for (i=0; i<32; i++) {
+			mic_data.sound_psd[i] = response[i+5];
+			debug_print("%d:%d, ", i*250/64,response[i+5]);
+		}
+		debug_print("\n");
 	}
-	debug_print("\n");
 	return rc;
 }
 
-/**
- * This process is run for ultrasonic mic.  It listens to a serial port and collects the data that is received.
- * It writes the data into the relavant parts of the telemetry structure.  It appends all of the data to a
- * file.
- *
- * Data is sent in from the Mic in the following format:
- *
- *
- */
-void *mic_listen_process(void * arg) {
-	char *name;
-	name = (char *) arg;
-	if (mic_listen_thread_called) {
-		error_print("Thread already started.  Exiting: %s\n", name);
-	}
-	mic_listen_thread_called = true;
-	//debug_print("Starting Thread: %s\n", name);
-
-	while (mic_listen_thread_called) {
-		// Test that we can open the serial, otherwise we get errors continually
-		int fd = open_serial(g_mic_serial_dev, B38400);
-		if (fd) {
-			tcflush(fd,TCIOFLUSH );
-			while (1) {
-				if (g_verbose) debug_print("Waiting for mic..\n");
-				mic_read_data(&g_sensor_telemetry);
-			}
-			close_serial(fd);
-		} else {
-			if (g_verbose)
-				error_print("Error while initializing %s.\n", g_mic_serial_dev);
-			mic_listen_thread_called = false;
-		}
-	}
-
-	mic_listen_thread_called = false;
-	return NULL;
-}
+///**
+// * This process is run for ultrasonic mic.  It listens to a serial port and collects the data that is received.
+// * It writes the data into the relavant parts of the telemetry structure.  It appends all of the data to a
+// * file.
+// *
+// * Data is sent in from the Mic in the following format:
+// *
+// *
+// */
+//void *mic_listen_process(void * arg) {
+//	char *name;
+//	name = (char *) arg;
+//	if (mic_listen_thread_called) {
+//		error_print("Thread already started.  Exiting: %s\n", name);
+//		return NULL;
+//	}
+//	mic_listen_thread_called = true;
+//	//debug_print("Starting Thread: %s\n", name);
+//
+//
+//	// Open the serial
+//	int fd = open_serial(g_mic_serial_dev, B38400);
+//	if (fd) {
+//		tcflush(fd,TCIOFLUSH );
+//		while (mic_listen_thread_called) {
+//			if (g_verbose) debug_print("Waiting for mic..\n");
+//			mic_read_data(&g_sensor_telemetry);
+//		}
+//	} else {
+//		if (g_verbose)
+//			error_print("Error while initializing mic %s.\n", g_mic_serial_dev);
+//	}
+//	close_serial(fd);
+//	mic_listen_thread_called = false;
+//	debug_print("Mic Thread.  Exiting: %s\n", name);
+//	return NULL;
+//}
 
 
 
