@@ -10,7 +10,7 @@
 #include <termios.h>
 
 #include "config.h"
-#include "state_file.h"
+#include "sensors_state_file.h"
 #include "debug.h"
 #include "serial_util.h"
 #include "ultrasonic_mic.h"
@@ -37,12 +37,21 @@ int mic_read_data() {
 
 	int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, MIC_RESPONSE_LEN);
 	//debug_print("%s\n",response);
-	int i;
-	for (i=0; i<32; i++) {
-		mic_data.sound_psd[i] = response[i+5];
-		debug_print("%d:%d, ", i*250/64,response[i+5]);
+	if (rc > 0) {
+		if (response[0] == 'D') { // We have data
+			int i;
+			for (i=0; i<32; i++) {
+				g_sensor_telemetry.sound_psd[i] = response[i+5];
+				debug_print("%d:%d, ", i*250/64,response[i+5]);
+			}
+			g_sensor_telemetry.microphone_valid = true;
+			debug_print("\n");
+			return rc;
+		}
 	}
-	debug_print("\n");
+
+	debug_print("No Microphone connected\n");
+	g_sensor_telemetry.microphone_valid = false;
 	return rc;
 }
 

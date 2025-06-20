@@ -36,7 +36,6 @@ extern char g_log_filename[MAX_FILE_PATH_LEN];
 extern sensor_telemetry_t g_sensor_telemetry;
 extern cw_data_t cw_raw_data;
 extern cw_data_t cw_coincident_data;
-extern mic_data_t mic_data;
 
 /* Define paramaters for config file - these are declared here and defined in sensors.c*/
 #define MAX_CONFIG_LINE_LENGTH 128
@@ -58,7 +57,6 @@ extern char g_wod_telem_path[MAX_FILE_PATH_LEN];
 extern char g_cw1_log_path[MAX_FILE_PATH_LEN];
 extern char g_cw2_log_path[MAX_FILE_PATH_LEN];
 extern char g_mic_log_path[MAX_FILE_PATH_LEN];
-extern int g_period_to_sample_telem_in_seconds;
 
 
 void load_config(char *filename);

@@ -16,7 +16,7 @@
 #include "config.h"
 #include "iors_log.h"
 #include "iors_command.h"
-#include "state_file.h"
+#include "sensors_state_file.h"
 #include "debug.h"
 #include "serial_util.h"
 #include "ultrasonic_mic.h"

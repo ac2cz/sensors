@@ -68,8 +68,6 @@ void load_config(char *filename) {
 					strlcpy(g_cw2_log_path, value,sizeof(g_cw2_log_path));
 				} else if (strcmp(key, CONFIG_MIC_LOG_PATH) == 0) {
 					strlcpy(g_mic_log_path, value,sizeof(g_mic_log_path));
-				} else if (strcmp(key, CONFIG_PERIOD_TO_SAMPLE_TELEM_IN_SECONDS) == 0) {
-					g_period_to_sample_telem_in_seconds = atoi(value);
 				} else {
 					error_print("Unknown key in %s file: %s\n",filename, key);
 				}

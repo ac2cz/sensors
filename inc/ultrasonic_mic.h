@@ -12,11 +12,12 @@
 
 #include "sensor_telemetry.h"
 
-typedef struct mic_data {
-	unsigned char sound_psd[32];
-    unsigned int max_sound_level : 8;
-    unsigned int max_sound_bin : 8;
-} mic_data_t;
+//typedef struct mic_data {
+//	unsigned char sound_psd[32];
+//    unsigned int max_sound_level : 8;
+//    unsigned int max_sound_bin : 8;
+//    unsigned int mic_valid : 1;
+//} mic_data_t;
 
 int mic_read_data();
 void *mic_listen_process(void * arg) ;

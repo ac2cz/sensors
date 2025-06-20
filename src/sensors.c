@@ -45,7 +45,7 @@
 #include <pthread.h>
 
 #include "config.h"
-#include "state_file.h"
+#include "sensors_state_file.h"
 #include "iors_log.h"
 #include "iors_command.h"
 #include "sensor_telemetry.h"
@@ -78,7 +78,6 @@ char g_log_filename[MAX_FILE_PATH_LEN];
 sensor_telemetry_t g_sensor_telemetry;
 cw_data_t cw_raw_data; // This is raw data from one of the detectors
 cw_data_t cw_coincident_data; // This is the co-incident data
-mic_data_t mic_data;
 
 /* These global variables are in the config file */
 char g_mic_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial0"; // device name for the serial port for ultrasonic mic
@@ -90,14 +89,14 @@ char g_cw1_log_path[MAX_FILE_PATH_LEN] = "cw1_log.dat";
 char g_cw2_log_path[MAX_FILE_PATH_LEN] = "cw2_log.dat";
 char g_mic_log_path[MAX_FILE_PATH_LEN] = "mic_log.dat";
 
-/* These global variables are in the state file and are resaved when changed.  These default values are
- * overwritten when the state file is loaded */
+/* These global variables are in the sensors state file in iors_common and are resaved when changed.  These default values are
+ * overwritten when the state file is loaded.  Note that iors_control typically changes these and not this program */
 int g_state_sensors_enabled = 1;
-int g_state_period_to_send_telem_in_seconds = 360;
-int g_state_period_to_store_wod_in_seconds = 60;
-int g_wod_max_file_size = 200000; // bytes.  Note that WOD every min for a 128 byte layout gives 184320 bytes in 24 hours.  So keep layout under 128 bytes or wod frequency greater
-int g_state_sensor_log_level = INFO_LOG;
-int g_period_to_sample_telem_in_seconds = 30;
+int g_state_sensors_period_to_send_telem_in_seconds = 60;
+int g_state_sensors_period_to_store_wod_in_seconds = 60;
+int g_state_sensors_wod_max_file_size = 200000; // bytes.  Note that WOD every min for a 128 byte layout gives 184320 bytes in 24 hours.  So keep layout under 128 bytes or wod frequency greater
+int g_state_sensors_log_level = INFO_LOG;
+int g_state_sensors_period_to_sample_telem_in_seconds = 30;
 
 /* Forward functions */
 int read_sensors(uint32_t now);
@@ -107,6 +106,7 @@ void signal_load_config (int sig);
 double linear_interpolation(double x, double x0, double x1, double y0, double y1);
 
 /* Local Variables */
+char sensors_state_file_name[MAX_FILE_PATH_LEN] = "sensors.state";
 char config_file_name[MAX_FILE_PATH_LEN] = "sensors.config";
 char data_folder_path[MAX_FILE_PATH_LEN] = "/ariss";
 sensor_telemetry_t g_sensor_telemetry;
@@ -120,6 +120,7 @@ int calibrate_with_dfrobot_sensor = 0;
 
 time_t last_time_checked_rt = 0;
 time_t last_time_checked_wod = 0;
+time_t last_time_checked_period_to_sample_telem = 0;
 
 pthread_t cw1_listen_pthread = 0;
 pthread_t cw2_listen_pthread = 0;
@@ -186,7 +187,7 @@ int main(int argc, char *argv[]) {
 
 	/* Load configuration from the config file */
 	load_config(config_file_name);
-	load_state("sensors.state");
+	load_sensors_state(sensors_state_file_name);
 
 	char rt_telem_path[MAX_FILE_PATH_LEN];
 	strlcpy(rt_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
@@ -206,7 +207,7 @@ int main(int argc, char *argv[]) {
 	strlcat(log_path,get_folder_str(FolderLog),MAX_FILE_PATH_LEN);
 
 	log_init(get_log_name_str(LOG_NAME), log_path, g_log_filename);
-	log_set_level(g_state_sensor_log_level);
+	log_set_level(g_state_sensors_log_level);
 	log_alog1(INFO_LOG, g_log_filename, ALOG_SENSORS_STARTUP, 0);
 
 	if (strlen(g_rt_telem_path) == 0) {
@@ -283,74 +284,86 @@ int main(int argc, char *argv[]) {
 //	}
 
 	/* Now read the sensors until we get an interrupt to exit */
+	time_t now = time(0);
+	last_time_checked_rt = now;
+	last_time_checked_wod = now;
+
 	while (1) {
-		load_state("sensors.state"); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
-		time_t now = time(0);
-		read_sensors(now);
-		mic_read_data();
+		now = time(0);
 
-		//TODO - some sort of locks here to make sure we get valid data and wait if it is currently being written.
+		if (g_state_sensors_enabled) {
 
-		/* Put in latest data from the CosmicWatches if we have it */
-		g_sensor_telemetry.cw_raw_valid = true;
-		g_sensor_telemetry.cw_coincident_valid = true;
-		g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
-		g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
-		g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;
-		g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg;
+			if ((now - last_time_checked_rt) > g_state_sensors_period_to_send_telem_in_seconds) {
+				last_time_checked_rt = now;
 
-		/* Put in latest data from the Mic if we have it */
-		g_sensor_telemetry.microphone_valid = 1;
-		int i = 0;
-		for (i=0; i<32; i++) {
-			g_sensor_telemetry.sound_psd[i] = mic_data.sound_psd[i];
-		}
-
-		if ((now - last_time_checked_rt) > g_state_period_to_send_telem_in_seconds) {
-			last_time_checked_rt = now;
-
-			uint8_t * data = (unsigned char *)&g_sensor_telemetry;
-			FILE * outfile = fopen(tmp_filename, "wb");
-			if (outfile != NULL) {
-				/* Save the realtime telemetry bytes into a tmp file then rename it.  This makes the write atomic */
-				for (int i=0; i<sizeof(g_sensor_telemetry); i++) {
-					int c = fputc(data[i],outfile);
-					if (c == EOF) {
-						fclose(outfile);
-						break;
+				uint8_t * data = (unsigned char *)&g_sensor_telemetry;
+				FILE * outfile = fopen(tmp_filename, "wb");
+				if (outfile != NULL) {
+					/* Save the realtime telemetry bytes into a tmp file then rename it.  This makes the write atomic */
+					for (int i=0; i<sizeof(g_sensor_telemetry); i++) {
+						int c = fputc(data[i],outfile);
+						if (c == EOF) {
+							fclose(outfile);
+							break;
+						}
 					}
-				}
-				fclose(outfile);
-				if (rename(tmp_filename, rt_telem_path) != EXIT_SUCCESS) {
+					fclose(outfile);
+					if (rename(tmp_filename, rt_telem_path) != EXIT_SUCCESS) {
+						if (g_verbose)
+							printf("ERROR, could not rename RT telem filename from: %s to: %s\n",tmp_filename, g_rt_telem_path);
+					} else {
+						if (g_verbose)
+							printf("Wrote RT file: %s at %d\n",g_rt_telem_path, g_sensor_telemetry.timestamp);
+					}
+				} else {
 					if (g_verbose)
-						printf("ERROR, could not rename RT telem filename from: %s to: %s\n",tmp_filename, g_rt_telem_path);
+						printf("ERROR, could not save data to filename: %s\n",g_rt_telem_path);
+					//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
 				}
-			} else {
-				if (g_verbose)
-					printf("ERROR, could not save data to filename: %s\n",g_rt_telem_path);
-				//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
+			}
+			if ((now - last_time_checked_wod) > g_state_sensors_period_to_store_wod_in_seconds) {
+				last_time_checked_wod = now;
+
+				int rc = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
+				if (rc != EXIT_SUCCESS) {
+					if (g_verbose)
+						printf("ERROR, could not save data to filename: %s\n",g_wod_telem_path);
+					//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
+				} else {
+					if (g_verbose)
+						printf("Wrote WOD file: %s at %d\n",g_wod_telem_path, g_sensor_telemetry.timestamp);
+				}
 			}
 		}
-		if ((now - last_time_checked_wod) > g_state_period_to_store_wod_in_seconds) {
-			last_time_checked_wod = now;
 
-			int rc = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
-			if (rc != EXIT_SUCCESS) {
-				if (g_verbose)
-					printf("ERROR, could not save data to filename: %s\n",g_wod_telem_path);
-				//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
+		if ((now - last_time_checked_period_to_sample_telem) > g_state_sensors_period_to_sample_telem_in_seconds) {
+			last_time_checked_period_to_sample_telem = now;
+			load_sensors_state(sensors_state_file_name); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
+			if (g_state_sensors_enabled) {
+				read_sensors(now);
+				mic_read_data();
+
+				//TODO - some sort of locks here to make sure we get valid data and wait if it is currently being written.
+
+				/* Put in latest data from the CosmicWatches if we have it */
+				g_sensor_telemetry.cw_raw_valid = true;
+				g_sensor_telemetry.cw_coincident_valid = true;
+				g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
+				g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
+				g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;
+				g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg;
+
 			}
 		}
-
-		time_t time_after_read = time(0);
-		int sleep_time = g_period_to_sample_telem_in_seconds - (time_after_read - now);
-		if (sleep_time > 86400) /* Then something went wrong with the calculation or the clocks */
-			sleep_time = g_period_to_sample_telem_in_seconds;
-		if (sleep_time > 0) {
-			if (g_verbose)
-				printf("  Waiting %d seconds ...\n", sleep_time);
-			sleep(sleep_time);
-		}
+//		time_t time_after_read = time(0);
+//		int sleep_time = g_period_to_sample_telem_in_seconds - (time_after_read - now);
+//		if (sleep_time > 86400) /* Then something went wrong with the calculation or the clocks */
+//			sleep_time = g_period_to_sample_telem_in_seconds;
+//		if (sleep_time > 0) {
+//			if (g_verbose)
+//				printf("  Waiting %d seconds ...\n", sleep_time);
+//			sleep(sleep_time);
+//		}
 	}
 }
 
@@ -381,7 +394,7 @@ void signal_exit (int sig) {
 
 void signal_load_config (int sig) {
 	load_config(config_file_name);
-	load_state("sensors.state");
+	load_sensors_state(sensors_state_file_name);
 }
 
 int read_sensors(uint32_t now) {
