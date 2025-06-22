@@ -492,7 +492,7 @@ int read_sensors(uint32_t now) {
 		g_sensor_telemetry.MagX = stMagnRawData.s16X;
 		g_sensor_telemetry.MagY = stMagnRawData.s16Y;
 		g_sensor_telemetry.MagZ = stMagnRawData.s16Z;
-		g_sensor_telemetry.IHUTemp = QMI8658_readTemp();
+		g_sensor_telemetry.IMUTemp = QMI8658_readTemp();
 	}
 
 	/* Read the sound sensor */
