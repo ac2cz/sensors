@@ -141,6 +141,7 @@ void TCS34087_Set_AGC_GAIN(uint8_t FD_GAIN,uint8_t AGAIN)
 {
 	TCS34087_WriteByte(TCS34087_AGC_GAIN_MAX, (FD_GAIN << 4) | AGAIN); 
 }
+#ifdef USE_TCS_INTERRUPT
 /******************************************************************************
 function:   Interrupt Enable
 ******************************************************************************/
@@ -150,6 +151,7 @@ static void TCS34087_Interrupt_Enable()
     data = TCS34087_ReadByte(TCS34087_INTENAB);
     TCS34087_WriteByte(TCS34087_INTENAB, data | TCS34087_INTENAB_AIEN );
 }
+#endif
 
 /******************************************************************************
 function:   Interrupt Disable
@@ -161,6 +163,7 @@ void TCS34087_Interrupt_Disable()
     TCS34087_WriteByte(TCS34087_INTENAB, data & (~TCS34087_INTENAB_ASIEN | TCS34087_INTENAB_AIEN | TCS34087_INTENAB_SIEN));
 }
 
+#ifdef USE_TCS_INTERRUPT
 /******************************************************************************
 function:   Set Interrupt Persistence register, Interrupts need to be maintained 
             for several cycles
@@ -192,7 +195,7 @@ static void TCS34087_Set_Interrupt_Threshold(uint16_t Threshold_H, uint16_t Thre
     TCS34087_WriteByte(TCS34087_AIHTL, Threshold_H & 0xff);
     TCS34087_WriteByte(TCS34087_AIHTH, Threshold_H >> 8);
 }
-
+#endif
 
 
 /******************************************************************************

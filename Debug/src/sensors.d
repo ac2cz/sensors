@@ -3,7 +3,8 @@ src/sensors.o: ../src/sensors.c ../inc/config.h \
  /usr/local/include/iors_common/debug.h \
  /usr/local/include/iors_common/common_config.h \
  /usr/local/include/iors_common/sensor_telemetry.h ../inc/cosmic_watch.h \
- ../inc/ultrasonic_mic.h ../inc/state_file.h \
+ ../inc/ultrasonic_mic.h \
+ /usr/local/include/iors_common/sensors_state_file.h \
  /usr/local/include/iors_common/iors_log.h \
  /usr/local/include/iors_common/iors_command.h \
  /usr/local/include/iors_common/str_util.h ../inc/AD.h ../inc/LPS22HB.h \
@@ -18,7 +19,7 @@ src/sensors.o: ../src/sensors.c ../inc/config.h \
 /usr/local/include/iors_common/sensor_telemetry.h:
 ../inc/cosmic_watch.h:
 ../inc/ultrasonic_mic.h:
-../inc/state_file.h:
+/usr/local/include/iors_common/sensors_state_file.h:
 /usr/local/include/iors_common/iors_log.h:
 /usr/local/include/iors_common/iors_command.h:
 /usr/local/include/iors_common/str_util.h:
