@@ -49,8 +49,8 @@
 #include <time.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <sensors_config.h>
 
-#include "config.h"
 #include "sensors_state_file.h"
 #include "iors_log.h"
 #include "iors_command.h"
@@ -85,24 +85,6 @@ sensor_telemetry_t g_sensor_telemetry;
 cw_data_t cw_raw_data; // This is raw data from one of the detectors
 cw_data_t cw_coincident_data; // This is the co-incident data
 
-/* These global variables are in the config file */
-char g_mic_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial0"; // device name for the serial port for ultrasonic mic
-char g_cw1_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial1"; // device name for the serial port for cosmic watch
-char g_cw2_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial2"; // device name for the serial port for cosmic watch
-char g_rt_telem_path[MAX_FILE_PATH_LEN] = "rt_telemetry.dat";
-char g_wod_telem_path[MAX_FILE_PATH_LEN] = "wod_telemetry.dat";
-char g_cw1_log_path[MAX_FILE_PATH_LEN] = "cw1_log.dat";
-char g_cw2_log_path[MAX_FILE_PATH_LEN] = "cw2_log.dat";
-char g_mic_log_path[MAX_FILE_PATH_LEN] = "mic_log.dat";
-
-/* These global variables are in the sensors state file in iors_common and are resaved when changed.  These default values are
- * overwritten when the state file is loaded.  Note that iors_control typically changes these and not this program */
-//int g_state_sensors_enabled = 1;
-//int g_state_sensors_period_to_send_telem_in_seconds = 60;
-int g_state_sensors_period_to_store_wod_in_seconds = 60;
-int g_state_sensors_wod_max_file_size = 200000; // bytes.  Note that WOD every min for a 128 byte layout gives 184320 bytes in 24 hours.  So keep layout under 128 bytes or wod frequency greater
-int g_state_sensors_log_level = INFO_LOG;
-int g_state_sensors_period_to_sample_telem_in_seconds = 30;
 
 /* Forward functions */
 int read_sensors(uint32_t now);
@@ -305,14 +287,18 @@ int main(int argc, char *argv[]) {
 			if ((now - last_time_checked_wod) > g_state_sensors_period_to_store_wod_in_seconds) {
 				last_time_checked_wod = now;
 
-				int rc = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
-				if (rc != EXIT_SUCCESS) {
+				long size = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
+				if (size < 0) {
 					if (g_verbose)
 						printf("ERROR, could not save data to filename: %s\n",g_wod_telem_path);
 					//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
 				} else {
 					if (g_verbose)
 						printf("Wrote WOD file: %s at %d\n",g_wod_telem_path, g_sensor_telemetry.timestamp);
+					if (size/1024 > g_state_sensors_wod_max_file_size_in_kb) {
+						debug_print("Rolling WOD file as it is: %.1f KB\n", size/1024.0);
+						log_add_to_directory(wod_telem_path);
+					}
 				}
 
 				/* If we have exceeded the WOD size threshold then roll the WOD file */
@@ -330,8 +316,14 @@ int main(int argc, char *argv[]) {
 				//TODO - some sort of locks here to make sure we get valid data from Muon detectors and wait if it is currently being written.
 
 				/* Put in latest data from the CosmicWatches if we have it */
-				g_sensor_telemetry.cw_raw_valid = true;
-				g_sensor_telemetry.cw_coincident_valid = true;
+				if (strlen(cw_raw_data.master_slave) != 0)
+					g_sensor_telemetry.cw_raw_valid = 1;
+				else
+					g_sensor_telemetry.cw_raw_valid = 0;
+				if (strlen(cw_coincident_data.master_slave) != 0)
+					g_sensor_telemetry.cw_coincident_valid = 1;
+				else
+					g_sensor_telemetry.cw_coincident_valid = 0;
 				g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
 				g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
 				g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;

@@ -6,6 +6,7 @@
  */
 
 
+#include <sensors_config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +14,6 @@
 #include <unistd.h>
 #include <time.h>
 
-#include "config.h"
 #include "iors_log.h"
 #include "iors_command.h"
 #include "sensors_state_file.h"

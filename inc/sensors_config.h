@@ -25,7 +25,6 @@
 #include "common_config.h"
 #include "sensor_telemetry.h"
 #include "cosmic_watch.h"
-#include "ultrasonic_mic.h"
 
 #define VERSION __DATE__ " ARISS Sensors - Version 0.1a"
 
@@ -37,27 +36,15 @@ extern sensor_telemetry_t g_sensor_telemetry;
 extern cw_data_t cw_raw_data;
 extern cw_data_t cw_coincident_data;
 
-/* Define paramaters for config file - these are declared here and defined in sensors.c*/
-#define MAX_CONFIG_LINE_LENGTH 128
-#define CONFIG_MIC_SERIAL_DEVICE "mic_serial_device"
-#define CONFIG_CW1_SERIAL_DEVICE "cw1_serial_device"
-#define CONFIG_CW2_SERIAL_DEVICE "cw2_serial_device"
-#define CONFIG_RT_TELEM_PATH "rt_telem_path"
-#define CONFIG_WOD_TELEM_PATH "wod_telem_path"
-#define CONFIG_CW1_LOG_PATH "cw1_log_path"
-#define CONFIG_CW2_LOG_PATH "cw2_log_path"
-#define CONFIG_MIC_LOG_PATH "mic_log_path"
-#define CONFIG_PERIOD_TO_SAMPLE_TELEM_IN_SECONDS "period_to_sample_telem_in_seconds"
 
+/* These are declared here and defined in sensors.c */
 extern char g_mic_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for ultrasonic mic
 extern char g_cw1_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for cosmic watch
 extern char g_cw2_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for cosmic watch
-extern char g_rt_telem_path[MAX_FILE_PATH_LEN];
 extern char g_wod_telem_path[MAX_FILE_PATH_LEN];
 extern char g_cw1_log_path[MAX_FILE_PATH_LEN];
 extern char g_cw2_log_path[MAX_FILE_PATH_LEN];
 extern char g_mic_log_path[MAX_FILE_PATH_LEN];
-
 
 void load_config(char *filename);
 

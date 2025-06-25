@@ -4,12 +4,12 @@
  *  Created on: Jun 9, 2025
  *      Author: g0kla
  */
+#include <sensors_config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 
-#include "config.h"
 #include "sensors_state_file.h"
 #include "debug.h"
 #include "serial_util.h"

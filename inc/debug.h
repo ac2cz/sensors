@@ -27,7 +27,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "config.h"
+#include "sensors_config.h"
 
 /* -- Macro Definitions
  * The do while(0) structure ensures that this code looks like a function and the
