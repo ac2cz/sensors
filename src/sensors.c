@@ -49,8 +49,8 @@
 #include <time.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <sensors_config.h>
 
+#include "sensors_config.h"
 #include "sensors_state_file.h"
 #include "iors_log.h"
 #include "iors_command.h"
@@ -183,14 +183,14 @@ int main(int argc, char *argv[]) {
 	char rt_telem_path[MAX_FILE_PATH_LEN];
 	strlcpy(rt_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
 	strlcat(rt_telem_path,"/",MAX_FILE_PATH_LEN);
-	strlcat(rt_telem_path,g_rt_telem_path,MAX_FILE_PATH_LEN);
+	strlcat(rt_telem_path,g_sensors_rt_telem_path,MAX_FILE_PATH_LEN);
 
 	char wod_telem_path[MAX_FILE_PATH_LEN];
 	strlcpy(wod_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
 	strlcat(wod_telem_path,"/",MAX_FILE_PATH_LEN);
 	strlcat(wod_telem_path,get_folder_str(FolderWod),MAX_FILE_PATH_LEN);
 	strlcat(wod_telem_path,"/",MAX_FILE_PATH_LEN);
-	strlcat(wod_telem_path,g_wod_telem_path,MAX_FILE_PATH_LEN);
+	strlcat(wod_telem_path,g_sensors_wod_telem_path,MAX_FILE_PATH_LEN);
 
 	char log_path[MAX_FILE_PATH_LEN];
 	strlcpy(log_path, data_folder_path,MAX_FILE_PATH_LEN);
@@ -201,11 +201,11 @@ int main(int argc, char *argv[]) {
 	log_set_level(g_state_sensors_log_level);
 	log_alog1(INFO_LOG, g_log_filename, ALOG_SENSORS_STARTUP, 0);
 
-	if (strlen(g_rt_telem_path) == 0) {
+	if (strlen(g_sensors_rt_telem_path) == 0) {
 		printf("ERROR: Telemetry filename required\n");
 		return 1;
 	}
-	if (strlen(g_wod_telem_path) == 0) {
+	if (strlen(g_sensors_wod_telem_path) == 0) {
 		printf("ERROR: WOD Telemetry filename required\n");
 		return 2;
 	}
@@ -284,26 +284,32 @@ int main(int argc, char *argv[]) {
 
 		if (g_state_sensors_period_to_sample_telem_in_seconds > 0) {
 
-			if ((now - last_time_checked_wod) > g_state_sensors_period_to_store_wod_in_seconds) {
-				last_time_checked_wod = now;
+			if (g_state_sensors_period_to_store_wod_in_seconds > 0) { /* Then WOD is enabled */
+				if ((now - last_time_checked_wod) > g_state_sensors_period_to_store_wod_in_seconds) {
+					last_time_checked_wod = now;
 
-				long size = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
-				if (size < 0) {
-					if (g_verbose)
-						printf("ERROR, could not save data to filename: %s\n",g_wod_telem_path);
-					//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
-				} else {
-					if (g_verbose)
-						printf("Wrote WOD file: %s at %d\n",g_wod_telem_path, g_sensor_telemetry.timestamp);
-					if (size/1024 > g_state_sensors_wod_max_file_size_in_kb) {
-						debug_print("Rolling WOD file as it is: %.1f KB\n", size/1024.0);
-						log_add_to_directory(wod_telem_path);
+					long size = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
+					if (size < 0) {
+						if (g_verbose)
+							printf("ERROR, could not save data to filename: %s\n",g_sensors_wod_telem_path);
+						//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
+					} else {
+						if (g_verbose)
+							printf("Wrote WOD file: %s at %d\n",g_sensors_wod_telem_path, g_sensor_telemetry.timestamp);
+						if (size/1024 > g_state_sensors_wod_max_file_size_in_kb) {
+							debug_print("Rolling WOD file as it is: %.1f KB\n", size/1024.0);
+							log_add_to_directory(wod_telem_path);
+						}
 					}
+
+					/* If we have exceeded the WOD size threshold then roll the WOD file */
+					if (size/1024 > g_state_sensors_wod_max_file_size_in_kb) {
+						debug_print("Rolling SENSOR WOD file as it is: %.1f KB\n", size/1024.0);
+						log_add_to_directory(g_sensors_wod_telem_path);
+					}
+
 				}
-
-				/* If we have exceeded the WOD size threshold then roll the WOD file */
-
-			}
+			} /* If Wod is enabled */
 
 			if ((now - last_time_checked_period_to_sample_telem) > g_state_sensors_period_to_sample_telem_in_seconds) {
 				last_time_checked_period_to_sample_telem = now;
@@ -316,23 +322,38 @@ int main(int argc, char *argv[]) {
 				//TODO - some sort of locks here to make sure we get valid data from Muon detectors and wait if it is currently being written.
 
 				/* Put in latest data from the CosmicWatches if we have it */
-				if (strlen(cw_raw_data.master_slave) != 0)
-					g_sensor_telemetry.cw_raw_valid = 1;
-				else
-					g_sensor_telemetry.cw_raw_valid = 0;
-				if (strlen(cw_coincident_data.master_slave) != 0)
-					g_sensor_telemetry.cw_coincident_valid = 1;
-				else
-					g_sensor_telemetry.cw_coincident_valid = 0;
-				g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
-				g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
-				g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;
-				g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg;
+				if (g_state_sensors_cosmic_watch_enabled) {
+					if (strlen(cw_raw_data.master_slave) != 0) {
+						g_sensor_telemetry.cw_raw_valid = SENSOR_ON;
+						g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
+						g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg;
+					} else {
+						g_sensor_telemetry.cw_raw_valid = SENSOR_ERR;
+						g_sensor_telemetry.cw_raw_count = 0;
+						g_sensor_telemetry.cw_raw_rate = 0;
+					}
+					if (strlen(cw_coincident_data.master_slave) != 0) {
+						g_sensor_telemetry.cw_coincident_valid = SENSOR_ON;
+						g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
+						g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;
+					} else {
+						g_sensor_telemetry.cw_coincident_valid = SENSOR_ERR;
+						g_sensor_telemetry.cw_coincident_count = 0;
+						g_sensor_telemetry.cw_coincident_rate = 0;
+					}
+				} else {
+					g_sensor_telemetry.cw_raw_valid = SENSOR_OFF;
+					g_sensor_telemetry.cw_coincident_valid = SENSOR_OFF;
+					g_sensor_telemetry.cw_coincident_count = 0;
+					g_sensor_telemetry.cw_raw_count = 0;
+					g_sensor_telemetry.cw_coincident_rate = 0;
+					g_sensor_telemetry.cw_raw_rate = 0;
+				}
 				save_rt_telem(tmp_filename, rt_telem_path);
-			}
+			} /* if time to sample sensors */
 		} /* if sensors enabled */
 
-		/* If the sensors are not enabled or if the sample period is set to a very high value, then we still want to check
+		/* If the sensors are not enabled or if the sample period is set to a very long value, then we still want to check
 		 * the state file every min */
 		if ((now - last_time_checked_state_file) > period_to_load_state_file) {
 			last_time_checked_state_file = now;
@@ -387,15 +408,15 @@ int save_rt_telem(char * tmp_filename, char *rt_telem_path) {
 		fclose(outfile);
 		if (rename(tmp_filename, rt_telem_path) != EXIT_SUCCESS) {
 			if (g_verbose)
-				printf("ERROR, could not rename RT telem filename from: %s to: %s\n",tmp_filename, g_rt_telem_path);
+				printf("ERROR, could not rename RT telem filename from: %s to: %s\n",tmp_filename, g_sensors_rt_telem_path);
 		} else {
 			if (g_verbose)
-				printf("Wrote RT file: %s at %d\n",g_rt_telem_path, g_sensor_telemetry.timestamp);
+				printf("Wrote RT file: %s at %d\n",g_sensors_rt_telem_path, g_sensor_telemetry.timestamp);
 			return EXIT_FAILURE;
 		}
 	} else {
 		if (g_verbose)
-			printf("ERROR, could not save data to filename: %s\n",g_rt_telem_path);
+			printf("ERROR, could not save data to filename: %s\n",g_sensors_rt_telem_path);
 		return EXIT_FAILURE;
 		//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
 	}
@@ -411,175 +432,245 @@ int read_sensors(uint32_t now) {
 
 	short val;
 	int rc;
-	rc = adc_read(ADC_METHANE_CHAN, &val);
-	if (rc != EXIT_SUCCESS) {
-		if (g_verbose)
-			printf("Could not open MQ-6 Methane sensor ADC channel %d\n",ADC_METHANE_CHAN);
+	if (g_state_sensors_methane_enabled) {
+		rc = adc_read(ADC_METHANE_CHAN, &val);
+		if (rc != EXIT_SUCCESS) {
+			if (g_verbose)
+				printf("Could not open MQ-6 Methane sensor ADC channel %d\n",ADC_METHANE_CHAN);
+			g_sensor_telemetry.methane_conc = 0;
+			g_sensor_telemetry.methane_sensor_valid = 2;
+		} else {
+			g_sensor_telemetry.methane_conc = val;
+			g_sensor_telemetry.methane_sensor_valid = 1;
+			if (g_verbose)
+				printf("MQ-6 Methane: %d,",val);
+		}
+	} else {
 		g_sensor_telemetry.methane_conc = 0;
-		g_sensor_telemetry.methane_sensor_valid = 0;
-	} else {
-		g_sensor_telemetry.methane_conc = val;
-		g_sensor_telemetry.methane_sensor_valid = 1;
-		if (g_verbose)
-			printf("MQ-6 Methane: %d,",val);
+		g_sensor_telemetry.methane_sensor_valid = SENSOR_OFF;
 	}
 
-	rc = adc_read(ADC_AIR_QUALITY_CHAN, &val);
-	if (rc != EXIT_SUCCESS) {
-		if (g_verbose)
-			printf("Could not open MQ-135 Air Quality ADC channel %d\n",ADC_AIR_QUALITY_CHAN);
+	if (g_state_sensors_air_q_enabled) {
+		rc = adc_read(ADC_AIR_QUALITY_CHAN, &val);
+		if (rc != EXIT_SUCCESS) {
+			if (g_verbose)
+				printf("Could not open MQ-135 Air Quality ADC channel %d\n",ADC_AIR_QUALITY_CHAN);
+			g_sensor_telemetry.air_quality = 0;
+			g_sensor_telemetry.air_q_sensor_valid = SENSOR_ERR;
+		} else {
+			if (g_verbose)
+				printf("MQ-135 Air Q: %d\n",val);
+			g_sensor_telemetry.air_quality = val;
+			g_sensor_telemetry.air_q_sensor_valid = SENSOR_ON;
+		}
+	} else {
 		g_sensor_telemetry.air_quality = 0;
-		g_sensor_telemetry.air_q_sensor_valid = 0;
-	} else {
-		if (g_verbose)
-			printf("MQ-135 Air Q: %d\n",val);
-		g_sensor_telemetry.air_quality = val;
-		g_sensor_telemetry.air_q_sensor_valid = 1;
+		g_sensor_telemetry.air_q_sensor_valid = SENSOR_OFF;
 	}
 
-	rc = adc_read(ADC_BUS_V_CHAN, &val);
-	if (rc != EXIT_SUCCESS) {
-		if (g_verbose)
-			printf("Could not open Bus Voltage sensor ADC channel %d\n",ADC_BUS_V_CHAN);
-	} else {
-		g_sensor_telemetry.pi_bus_v = val;
-		if (g_verbose)
-			printf("PI Bus (5V): %0.0fmV,",2*val*0.125);
-	}
+//	rc = adc_read(ADC_BUS_V_CHAN, &val);
+//	if (rc != EXIT_SUCCESS) {
+//		if (g_verbose)
+//			printf("Could not open Bus Voltage sensor ADC channel %d\n",ADC_BUS_V_CHAN);
+//	} else {
+//		g_sensor_telemetry.pi_bus_v = val;
+//		if (g_verbose)
+//			printf("PI Bus (5V): %0.0fmV,",2*val*0.125);
+//	}
 
 	/* Read Waveshare C board sensors */
 	/* Read the SHTC3 temp and humidity */
-	short temperature, humidity;
-	if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
-		if (g_verbose)
-			printf("Could not open SHTC3 Temperature sensor\n");
-	} else {
-		g_sensor_telemetry.SHTC3_temp = temperature;
-		g_sensor_telemetry.SHTC3_humidity = humidity;
+	if (g_state_sensors_temp_humidity_enabled) {
+		short temperature, humidity;
+		if (SHTC3_read(&temperature, &humidity) != EXIT_SUCCESS) {
+			if (g_verbose)
+				printf("Could not open SHTC3 Temperature sensor\n");
+			g_sensor_telemetry.SHTC3_temp = 0;
+			g_sensor_telemetry.SHTC3_humidity = 0;
+			g_sensor_telemetry.TempHumidityValid = SENSOR_ERR;
+		} else {
+			g_sensor_telemetry.SHTC3_temp = temperature;
+			g_sensor_telemetry.SHTC3_humidity = humidity;
+			g_sensor_telemetry.TempHumidityValid = SENSOR_ON;
 
-		float TH_Value, RH_Value;
-		TH_Value = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
-		RH_Value = 100 * (float)humidity / 65536.0f;         // Calculate humidity value
-		if (g_verbose)
-			printf("Temperature = %6.2f°C , Humidity = %6.2f%% \n", TH_Value, RH_Value);
+			if (g_verbose) {
+				float TH_Value, RH_Value;
+				TH_Value = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
+				RH_Value = 100 * (float)humidity / 65536.0f;         // Calculate humidity value
+				printf("Temperature = %6.2f°C , Humidity = %6.2f%% \n", TH_Value, RH_Value);
+			}
+		}
+	} else {
+		g_sensor_telemetry.SHTC3_temp = 0;
+		g_sensor_telemetry.SHTC3_humidity = 0;
+		g_sensor_telemetry.TempHumidityValid = SENSOR_OFF;
 	}
-
 	/* Read the lps22 pressure sensor and its temperature */
-	short lps22_temperature;
-	int pressure;
-	if (LPS22HB_read(&pressure, &lps22_temperature) != EXIT_SUCCESS) {
-		if (g_verbose)
-			printf("Could not open LPS22 Pressure sensor\n");
+	if (g_state_sensors_pressure_enabled) {
+		short lps22_temperature;
+		int pressure;
+		if (LPS22HB_read(&pressure, &lps22_temperature) != EXIT_SUCCESS) {
+			g_sensor_telemetry.LPS22_pressure = 0;
+			g_sensor_telemetry.LPS22_temp = 0;
+			g_sensor_telemetry.PressureValid = SENSOR_ERR;
+			if (g_verbose)
+				printf("Could not open LPS22 Pressure sensor\n");
+		} else {
+			g_sensor_telemetry.LPS22_pressure = pressure;
+			g_sensor_telemetry.LPS22_temp = lps22_temperature;
+			g_sensor_telemetry.PressureValid = SENSOR_ON;
+			if (g_verbose)
+				printf("Pressure = %6.3f hPa, Temperature = %6.2f °C\n", pressure/4096.0, lps22_temperature/100.0);
+		}
 	} else {
-		g_sensor_telemetry.LPS22_pressure = pressure;
-		g_sensor_telemetry.LPS22_temp = lps22_temperature;
-		if (g_verbose)
-			printf("Pressure = %6.3f hPa, Temperature = %6.2f °C\n", pressure/4096.0, lps22_temperature/100.0);
+		g_sensor_telemetry.LPS22_pressure = 0;
+		g_sensor_telemetry.LPS22_temp = 0;
+		g_sensor_telemetry.PressureValid = SENSOR_OFF;
 	}
 
 	/* Read the Gyroscope */
-	if (imu_status) {
-		IMU_ST_SENSOR_DATA stGyroRawData;
-		IMU_ST_SENSOR_DATA stAccelRawData;
-		IMU_ST_SENSOR_DATA stMagnRawData;
+	if (g_state_sensors_imu_enabled) {
+		g_sensor_telemetry.AccelerationX = 0;
+		g_sensor_telemetry.AccelerationY = 0;
+		g_sensor_telemetry.AccelerationZ = 0;
+		g_sensor_telemetry.GyroX = 0;
+		g_sensor_telemetry.GyroY = 0;
+		g_sensor_telemetry.GyroZ = 0;
+		g_sensor_telemetry.MagX = 0;
+		g_sensor_telemetry.MagY = 0;
+		g_sensor_telemetry.MagZ = 0;
+		g_sensor_telemetry.IMUTemp = 0;
 
-		imuDataGetRaw(&stGyroRawData, &stAccelRawData, &stMagnRawData);
-		if (g_verbose) {
-			printf("Acceleration: X: %d     Y: %d     Z: %d \n",stAccelRawData.s16X, stAccelRawData.s16Y, stAccelRawData.s16Z);
-			printf("Gyroscope: X: %d     Y: %d     Z: %d \n",stGyroRawData.s16X, stGyroRawData.s16Y, stGyroRawData.s16Z);
-			printf("Magnetic: X: %d     Y: %d     Z: %d \n",stMagnRawData.s16X, stMagnRawData.s16Y, stMagnRawData.s16Z);
-		}
-		g_sensor_telemetry.AccelerationX = stAccelRawData.s16X;
-		g_sensor_telemetry.AccelerationY = stAccelRawData.s16Y;
-		g_sensor_telemetry.AccelerationZ = stAccelRawData.s16Z;
-		g_sensor_telemetry.GyroX = stGyroRawData.s16X;
-		g_sensor_telemetry.GyroY = stGyroRawData.s16Y;
-		g_sensor_telemetry.GyroZ = stGyroRawData.s16Z;
-		g_sensor_telemetry.MagX = stMagnRawData.s16X;
-		g_sensor_telemetry.MagY = stMagnRawData.s16Y;
-		g_sensor_telemetry.MagZ = stMagnRawData.s16Z;
-		g_sensor_telemetry.IMUTemp = QMI8658_readTemp();
-	}
+		if (imu_status) {
+			IMU_ST_SENSOR_DATA stGyroRawData;
+			IMU_ST_SENSOR_DATA stAccelRawData;
+			IMU_ST_SENSOR_DATA stMagnRawData;
 
-	/* Read the sound sensor */
-	//TODO
-
-	/* Read data from cosmic watches */
-	//TODO
-
-	/* Read the xensiv CO2 sensor */
-	if (co2_status == true) {
-		uint16_t co2_ppm_val;
-		uint16_t pressure_ref = (uint16_t)(pressure/4096.0);
-		if (xensiv_pasco2_read(pressure_ref, &co2_ppm_val) != XENSIV_PASCO2_READ_NRDY) {
-			if (g_verbose)
-				printf("CO2: %d ppm at %d hPa\n",co2_ppm_val, pressure_ref);
+			imuDataGetRaw(&stGyroRawData, &stAccelRawData, &stMagnRawData);
+			if (g_verbose) {
+				printf("Acceleration: X: %d     Y: %d     Z: %d \n",stAccelRawData.s16X, stAccelRawData.s16Y, stAccelRawData.s16Z);
+				printf("Gyroscope: X: %d     Y: %d     Z: %d \n",stGyroRawData.s16X, stGyroRawData.s16Y, stGyroRawData.s16Z);
+				printf("Magnetic: X: %d     Y: %d     Z: %d \n",stMagnRawData.s16X, stMagnRawData.s16Y, stMagnRawData.s16Z);
+			}
+			g_sensor_telemetry.AccelerationX = stAccelRawData.s16X;
+			g_sensor_telemetry.AccelerationY = stAccelRawData.s16Y;
+			g_sensor_telemetry.AccelerationZ = stAccelRawData.s16Z;
+			g_sensor_telemetry.GyroX = stGyroRawData.s16X;
+			g_sensor_telemetry.GyroY = stGyroRawData.s16Y;
+			g_sensor_telemetry.GyroZ = stGyroRawData.s16Z;
+			g_sensor_telemetry.MagX = stMagnRawData.s16X;
+			g_sensor_telemetry.MagY = stMagnRawData.s16Y;
+			g_sensor_telemetry.MagZ = stMagnRawData.s16Z;
+			g_sensor_telemetry.IMUTemp = QMI8658_readTemp();
 		} else {
-			if (g_verbose)
-				printf("CO2 Sensor not ready\n");
-		}
-	}
+			g_sensor_telemetry.ImuValid = SENSOR_ERR;
+		} /* if imu_status */
+	} else {
+		g_sensor_telemetry.ImuValid = SENSOR_OFF;
+	} /* if g_state_sensors_imu_enabled */
 
-	/* Read the PS1 solid state O2 sensor.  Average 10 readings over 10 seconds */
-	if (o2_status) {
-		int c=0;
-		float avg=0.0, max=0.0,min=65555;
-		while (c < 10) {
-			rc = adc_read(ADC_O2_CHAN, &val);
-			if (rc != EXIT_SUCCESS) {
+	/* Read the xensiv CO2 sensor
+	 * Note that this is dependant on the pressure reading */
+	if (g_state_sensors_co2_enabled) {
+		if (co2_status == true && g_sensor_telemetry.PressureValid == SENSOR_ON) {
+			uint16_t co2_ppm_val;
+			uint16_t pressure_ref = (uint16_t)(g_sensor_telemetry.LPS22_pressure/4096.0);
+			if (xensiv_pasco2_read(pressure_ref, &co2_ppm_val) != XENSIV_PASCO2_READ_NRDY) {
 				if (g_verbose)
-					printf("Could not open O2 Sensor ADC channel %d\n",ADC_O2_CHAN);
-				break;
+					printf("CO2: %d ppm at %d hPa\n",co2_ppm_val, pressure_ref);
+				g_sensor_telemetry.CO2_conc = co2_ppm_val;
+				g_sensor_telemetry.CO2_pressure = pressure_ref;
 			} else {
-				//					rttelemetry.BatteryV = val;
-				//float volts = val * 0.125;
-				//float o2_conc = -0.01805 * volts + 44.5835;
-				//			printf("%.2f%% ..\n",o2_conc);
-				//	if (g_verbose)
-				//		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
-				if (val > max) max = val;
-				if (val < min) min = val;
-				avg+= val;
+				if (g_verbose)
+					printf("CO2 Sensor not ready\n");
+				g_sensor_telemetry.co2_sensor_valid = SENSOR_ERR;
+				g_sensor_telemetry.CO2_conc = 0;
+				g_sensor_telemetry.CO2_pressure = 0;
 			}
-			sleep(1);
-			c++;
+		} else {
+			g_sensor_telemetry.co2_sensor_valid = SENSOR_ERR;
+			g_sensor_telemetry.CO2_conc = 0;
+			g_sensor_telemetry.CO2_pressure = 0;
 		}
-		avg = avg / c;
-		float volts = avg * 0.125;
-		float o2_conc = -0.01805 * volts + 44.5835;
-		//float o2_conc = -0.0103 * volts + 25.103;
-
-		if (c > 0 && g_verbose) {
-			/* Compensate for Temperature,  Look up temperature in table and interpolate the correction amount */
-			int i = 0;
-			double offset = 0.0;
-			double first_key = 0;
-			double last_key = 0;
-			double first_value = 0;
-			double last_value = 0;
-			double temp = lps22_temperature/100.0;
-
-			if (temp >= 0 && temp <= 50) {
-				while (i++ < O2_TEMPERATURE_TABLE_LEN) {
-					if (o2_temp_table[i][0] < temp) {
-						first_key = o2_temp_table[i][0];
-						first_value = o2_temp_table[i][1];
-					}
-					if (o2_temp_table[i][0] > temp) {
-						last_key = o2_temp_table[i][0];
-						last_value = o2_temp_table[i][1];
-						break;
-					}
-				}
-				offset = linear_interpolation(temp, first_key, last_key, first_value, last_value);
-
-				//printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
-			}
-
-			printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
-		}
-		g_sensor_telemetry.O2_conc = (short)avg;
+	} else {
+		g_sensor_telemetry.co2_sensor_valid = SENSOR_OFF;
+		g_sensor_telemetry.CO2_conc = 0;
+		g_sensor_telemetry.CO2_pressure = 0;
 	}
+
+	/* Read the PS1 solid state O2 sensor.  Average 10 readings over 10 seconds
+	 * Note this is dependant on the temperature reading from the pressure sensor */
+	if (g_state_sensors_o2_enabled) {
+		if (o2_status && g_sensor_telemetry.PressureValid == SENSOR_ON) {
+			int c=0;
+			float avg=0.0, max=0.0,min=65555;
+			while (c < 10) {
+				rc = adc_read(ADC_O2_CHAN, &val);
+				if (rc != EXIT_SUCCESS) {
+					if (g_verbose)
+						printf("Could not open O2 Sensor ADC channel %d\n",ADC_O2_CHAN);
+					g_sensor_telemetry.o2_sensor_valid = SENSOR_ERR;
+					break;
+				} else {
+					//					rttelemetry.BatteryV = val;
+					//float volts = val * 0.125;
+					//float o2_conc = -0.01805 * volts + 44.5835;
+					//			printf("%.2f%% ..\n",o2_conc);
+					//	if (g_verbose)
+					//		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
+					if (val > max) max = val;
+					if (val < min) min = val;
+					avg+= val;
+					g_sensor_telemetry.o2_sensor_valid = SENSOR_ON;
+				}
+				sleep(1);
+				c++;
+			}
+			avg = avg / c;
+			float volts = avg * 0.125;
+			float o2_conc = -0.01805 * volts + 44.5835;
+			//float o2_conc = -0.0103 * volts + 25.103;
+
+			if (c > 0 && g_sensor_telemetry.o2_sensor_valid == SENSOR_ON) {
+				/* Compensate for Temperature,  Look up temperature in table and interpolate the correction amount */
+				int i = 0;
+				double offset = 0.0;
+				double first_key = 0;
+				double last_key = 0;
+				double first_value = 0;
+				double last_value = 0;
+				double temp = g_sensor_telemetry.LPS22_temp/100.0;
+
+				if (temp >= 0 && temp <= 50) {
+					while (i++ < O2_TEMPERATURE_TABLE_LEN) {
+						if (o2_temp_table[i][0] < temp) {
+							first_key = o2_temp_table[i][0];
+							first_value = o2_temp_table[i][1];
+						}
+						if (o2_temp_table[i][0] > temp) {
+							last_key = o2_temp_table[i][0];
+							last_value = o2_temp_table[i][1];
+							break;
+						}
+					}
+					offset = linear_interpolation(temp, first_key, last_key, first_value, last_value);
+
+					//printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
+				}
+				if (g_verbose)
+					printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
+				g_sensor_telemetry.O2_conc = (short)((o2_conc + offset)*100); // shift percentage like 20.95 to be 2095
+			} else {
+				g_sensor_telemetry.O2_conc = 0;
+			}
+		} else {
+			g_sensor_telemetry.o2_sensor_valid = SENSOR_ERR;
+			g_sensor_telemetry.O2_conc = 0;
+		} /* if o2_status */
+	} else {
+		g_sensor_telemetry.o2_sensor_valid = SENSOR_OFF;
+		g_sensor_telemetry.O2_conc = 0;
+	} /* if g_state_sensors_o2_enabled */
 
 	/* If we are calibrating the O2 sensor then output values from dfrobot sensor if connected */
 	if (calibrate_with_dfrobot_sensor) {
@@ -592,18 +683,28 @@ int read_sensors(uint32_t now) {
 	}
 
 	/* Read the color sensor */
-	if (tcs_status) {
-		RGB rgb=TCS34087_Get_RGBData();
-		uint32_t RGB888=TCS34087_GetRGB888(rgb);
-		uint16_t level = TCS34087_Get_Lux(rgb);
+	if (g_state_sensors_color_enabled) {
+		if (tcs_status) {
+			RGB rgb=TCS34087_Get_RGBData();
+			uint32_t RGB888=TCS34087_GetRGB888(rgb);
+			uint16_t level = TCS34087_Get_Lux(rgb);
 
-		if (g_verbose)
-			printf("RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
-				(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, rgb.C,level);
+			if (g_verbose)
+				printf("RGB888 :R=%d   G=%d  B=%d   RGB888=0X%X  C=%d LUX=%d\n", (RGB888>>16), \
+						(RGB888>>8) & 0xff, (RGB888) & 0xff, RGB888, rgb.C,level);
 
-		g_sensor_telemetry.light_level = level;
-        g_sensor_telemetry.light_RGB = RGB888;
-
+			g_sensor_telemetry.light_level = level;
+			g_sensor_telemetry.light_RGB = RGB888;
+			g_sensor_telemetry.ColorValid = SENSOR_ON;
+		} else {
+			g_sensor_telemetry.ColorValid = SENSOR_ERR;
+			g_sensor_telemetry.light_level = 0;
+			g_sensor_telemetry.light_RGB = 0;
+		}
+	} else {
+		g_sensor_telemetry.ColorValid = SENSOR_OFF;
+		g_sensor_telemetry.light_level = 0;
+		g_sensor_telemetry.light_RGB = 0;
 	}
 	return EXIT_SUCCESS;
 }

@@ -38,22 +38,12 @@
 #define CONFIG_MIC_SERIAL_DEVICE "mic_serial_device"
 #define CONFIG_CW1_SERIAL_DEVICE "cw1_serial_device"
 #define CONFIG_CW2_SERIAL_DEVICE "cw2_serial_device"
-//#define CONFIG_RT_TELEM_PATH "rt_telem_path"
-#define CONFIG_WOD_TELEM_PATH "wod_telem_path"
-#define CONFIG_CW1_LOG_PATH "cw1_log_path"
-#define CONFIG_CW2_LOG_PATH "cw2_log_path"
-#define CONFIG_MIC_LOG_PATH "mic_log_path"
 #define CONFIG_PERIOD_TO_SAMPLE_TELEM_IN_SECONDS "period_to_sample_telem_in_seconds"
 
 /* These global variables are in the sensors_config.h file */
 char g_mic_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial0"; // device name for the serial port for ultrasonic mic
 char g_cw1_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial1"; // device name for the serial port for cosmic watch
 char g_cw2_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial2"; // device name for the serial port for cosmic watch
-
-char g_wod_telem_path[MAX_FILE_PATH_LEN] = "wod_telemetry.dat";
-char g_cw1_log_path[MAX_FILE_PATH_LEN] = "cw1_log.dat";
-char g_cw2_log_path[MAX_FILE_PATH_LEN] = "cw2_log.dat";
-char g_mic_log_path[MAX_FILE_PATH_LEN] = "mic_log.dat";
 
 #include <sensors_config.h>
 
@@ -79,22 +69,12 @@ void load_config(char *filename) {
 				debug_print(" %s",key);
 				value[strcspn(value,"\n")] = 0; // Move the nul termination to get rid of the new line
 				debug_print(" = %s\n",value);
-//				if (strcmp(key, CONFIG_RT_TELEM_PATH) == 0) {
-//					strlcpy(g_rt_telem_path, value,sizeof(g_rt_telem_path));
-				if (strcmp(key, CONFIG_WOD_TELEM_PATH) == 0) {
-					strlcpy(g_wod_telem_path, value,sizeof(g_wod_telem_path));
-				} else if (strcmp(key, CONFIG_MIC_SERIAL_DEVICE) == 0) {
+				if (strcmp(key, CONFIG_MIC_SERIAL_DEVICE) == 0) {
 					strlcpy(g_mic_serial_dev, value,sizeof(g_mic_serial_dev));
 				} else if (strcmp(key, CONFIG_CW1_SERIAL_DEVICE) == 0) {
 					strlcpy(g_cw1_serial_dev, value,sizeof(g_cw1_serial_dev));
 				} else if (strcmp(key, CONFIG_CW2_SERIAL_DEVICE) == 0) {
 					strlcpy(g_cw2_serial_dev, value,sizeof(g_cw2_serial_dev));
-				} else if (strcmp(key, CONFIG_CW1_LOG_PATH) == 0) {
-					strlcpy(g_cw1_log_path, value,sizeof(g_cw1_log_path));
-				} else if (strcmp(key, CONFIG_CW2_LOG_PATH) == 0) {
-					strlcpy(g_cw2_log_path, value,sizeof(g_cw2_log_path));
-				} else if (strcmp(key, CONFIG_MIC_LOG_PATH) == 0) {
-					strlcpy(g_mic_log_path, value,sizeof(g_mic_log_path));
 				} else {
 					error_print("Unknown key in %s file: %s\n",filename, key);
 				}

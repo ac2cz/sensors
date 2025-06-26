@@ -28,6 +28,10 @@
 
 #define VERSION __DATE__ " ARISS Sensors - Version 0.1a"
 
+#define SENSOR_OFF 0
+#define SENSOR_ON 1
+#define SENSOR_ERR 2
+
 /* These global variables are not in the config file */
 extern int g_run_self_test;    /* true when the self test is running */
 extern int g_verbose;          /* print verbose output when set */
@@ -41,10 +45,6 @@ extern cw_data_t cw_coincident_data;
 extern char g_mic_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for ultrasonic mic
 extern char g_cw1_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for cosmic watch
 extern char g_cw2_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for cosmic watch
-extern char g_wod_telem_path[MAX_FILE_PATH_LEN];
-extern char g_cw1_log_path[MAX_FILE_PATH_LEN];
-extern char g_cw2_log_path[MAX_FILE_PATH_LEN];
-extern char g_mic_log_path[MAX_FILE_PATH_LEN];
 
 void load_config(char *filename);
 

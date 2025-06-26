@@ -55,7 +55,7 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 	strlcat(log_path,"/",MAX_FILE_PATH_LEN);
 	strlcat(log_path,get_folder_str(FolderLog),MAX_FILE_PATH_LEN);
 	strlcat(log_path,"/",MAX_FILE_PATH_LEN);
-	strlcat(log_path,g_cw1_log_path,MAX_FILE_PATH_LEN);
+	strlcat(log_path,g_sensors_cw_log_path,MAX_FILE_PATH_LEN);
 
 	// Test that we can open the serial, otherwise we get errors continually
 	int fd = open_serial(serial_dev, speed);

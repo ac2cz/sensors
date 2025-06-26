@@ -19,7 +19,6 @@
 //    unsigned int mic_valid : 1;
 //} mic_data_t;
 
-int mic_read_data();
-void *mic_listen_process(void * arg) ;
+void mic_read_data();
 
 #endif /* ULTRASONIC_MIC_H_ */

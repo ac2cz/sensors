@@ -19,8 +19,20 @@
 
 /* Forward declarations */
 
-int mic_listen_thread_called = false;
+/* Local variables */
+static int mic_listen_thread_called = false;
+static unsigned char response[MIC_RESPONSE_LEN];
 
+void mic_err(int err) {
+	int i;
+	g_sensor_telemetry.microphone_valid = err;
+	for (i=0; i<32; i++) {
+		g_sensor_telemetry.sound_psd[i] = 0;
+	}
+	if (err == SENSOR_ERR)
+		debug_print("No Microphone connected\n");
+
+}
 /**
  * This reads the Data via serial from the Pi Pico ultrasonic mic.
  * The data is in the following format:
@@ -30,29 +42,33 @@ int mic_listen_thread_called = false;
  * By default the FFT length 64 and there are 32 bins in the result
  *
  */
-int mic_read_data() {
-	unsigned char response[MIC_RESPONSE_LEN];
+void mic_read_data() {
 	char * cmd = "D";
 	int cmd_len = 1;
+	int i;
 
-	int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, MIC_RESPONSE_LEN);
-	//debug_print("%s\n",response);
-	if (rc > 0) {
-		if (response[0] == 'D') { // We have data
-			int i;
-			for (i=0; i<32; i++) {
-				g_sensor_telemetry.sound_psd[i] = response[i+5];
-				debug_print("%d:%d, ", i*250/64,response[i+5]);
+	if (g_state_sensors_cosmic_watch_enabled) {
+
+		int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, MIC_RESPONSE_LEN);
+		//debug_print("%s\n",response);
+		if (rc > 0) {
+			if (response[0] == 'D') { // We have data
+				for (i=0; i<32; i++) {
+					g_sensor_telemetry.sound_psd[i] = response[i+5];
+					debug_print("%d:%d, ", i*250/64,response[i+5]);
+				}
+				g_sensor_telemetry.microphone_valid = SENSOR_ON;
+				debug_print("\n");
+			} else {
+				mic_err(SENSOR_ERR);
 			}
-			g_sensor_telemetry.microphone_valid = true;
-			debug_print("\n");
-			return rc;
+		} else {
+			mic_err(SENSOR_ERR);
 		}
+	} else {
+		mic_err(SENSOR_OFF);
 	}
 
-	debug_print("No Microphone connected\n");
-	g_sensor_telemetry.microphone_valid = false;
-	return rc;
 }
 
 /**
