@@ -154,7 +154,7 @@ void *cw2_listen_process(void * arg) {
 	return NULL;
 }
 
-int debug_parsing = true;
+int debug_parsing = false;
 
 cw_data_t *cw_parse_data(char *str_data) {
 	cw_data_t tmp_data;
