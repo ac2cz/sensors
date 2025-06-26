@@ -82,9 +82,6 @@ int g_run_self_test;    /* true when the self test is running */
 int g_verbose = false;
 char g_log_filename[MAX_FILE_PATH_LEN];
 sensor_telemetry_t g_sensor_telemetry;
-cw_data_t cw_raw_data; // This is raw data from one of the detectors
-cw_data_t cw_coincident_data; // This is the co-incident data
-
 
 /* Forward functions */
 int read_sensors(uint32_t now);
@@ -99,7 +96,9 @@ double linear_interpolation(double x, double x0, double x1, double y0, double y1
 char sensors_state_file_name[MAX_FILE_PATH_LEN] = "sensors.state";
 char config_file_name[MAX_FILE_PATH_LEN] = "sensors.config";
 char data_folder_path[MAX_FILE_PATH_LEN] = "/ariss";
+
 sensor_telemetry_t g_sensor_telemetry;
+
 //int PERIOD=10;
 //char filename[MAX_FILE_PATH_LEN];
 int co2_status = false;
@@ -178,7 +177,7 @@ int main(int argc, char *argv[]) {
 
 	/* Load configuration from the config file */
 	load_config(config_file_name);
-	load_sensors_state(sensors_state_file_name);
+	load_sensors_state(sensors_state_file_name, g_verbose);
 
 	char rt_telem_path[MAX_FILE_PATH_LEN];
 	strlcpy(rt_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
@@ -288,7 +287,9 @@ int main(int argc, char *argv[]) {
 				if ((now - last_time_checked_wod) > g_state_sensors_period_to_store_wod_in_seconds) {
 					last_time_checked_wod = now;
 
+					pthread_mutex_lock(&cw_mutex);
 					long size = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
+					pthread_mutex_unlock(&cw_mutex);
 					if (size < 0) {
 						if (g_verbose)
 							printf("ERROR, could not save data to filename: %s\n",g_sensors_wod_telem_path);
@@ -313,7 +314,7 @@ int main(int argc, char *argv[]) {
 
 			if ((now - last_time_checked_period_to_sample_telem) > g_state_sensors_period_to_sample_telem_in_seconds) {
 				last_time_checked_period_to_sample_telem = now;
-				load_sensors_state(sensors_state_file_name); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
+				load_sensors_state(sensors_state_file_name, false); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
 				last_time_checked_state_file = now;
 
 				read_sensors(now);
@@ -322,11 +323,13 @@ int main(int argc, char *argv[]) {
 				//TODO - some sort of locks here to make sure we get valid data from Muon detectors and wait if it is currently being written.
 
 				/* Put in latest data from the CosmicWatches if we have it */
+				pthread_mutex_lock(&cw_mutex);
 				if (g_state_sensors_cosmic_watch_enabled) {
 					if (strlen(cw_raw_data.master_slave) != 0) {
 						g_sensor_telemetry.cw_raw_valid = SENSOR_ON;
 						g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
-						g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg;
+						g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg *6000;  // TODO - measure per min in detector, rather than multiply here
+
 					} else {
 						g_sensor_telemetry.cw_raw_valid = SENSOR_ERR;
 						g_sensor_telemetry.cw_raw_count = 0;
@@ -335,7 +338,8 @@ int main(int argc, char *argv[]) {
 					if (strlen(cw_coincident_data.master_slave) != 0) {
 						g_sensor_telemetry.cw_coincident_valid = SENSOR_ON;
 						g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
-						g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;
+						g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg * 6000;
+						debug_print("Co count: %d Co Rate %d\n",g_sensor_telemetry.cw_coincident_count, g_sensor_telemetry.cw_coincident_rate);
 					} else {
 						g_sensor_telemetry.cw_coincident_valid = SENSOR_ERR;
 						g_sensor_telemetry.cw_coincident_count = 0;
@@ -349,7 +353,9 @@ int main(int argc, char *argv[]) {
 					g_sensor_telemetry.cw_coincident_rate = 0;
 					g_sensor_telemetry.cw_raw_rate = 0;
 				}
+
 				save_rt_telem(tmp_filename, rt_telem_path);
+				pthread_mutex_unlock(&cw_mutex);
 			} /* if time to sample sensors */
 		} /* if sensors enabled */
 
@@ -357,7 +363,7 @@ int main(int argc, char *argv[]) {
 		 * the state file every min */
 		if ((now - last_time_checked_state_file) > period_to_load_state_file) {
 			last_time_checked_state_file = now;
-			load_sensors_state(sensors_state_file_name); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
+			load_sensors_state(sensors_state_file_name, g_verbose); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
 		}
 
 	} /* while (1) */
@@ -390,7 +396,7 @@ void signal_exit (int sig) {
 
 void signal_load_config (int sig) {
 	load_config(config_file_name);
-	load_sensors_state(sensors_state_file_name);
+	load_sensors_state(sensors_state_file_name, g_verbose);
 }
 
 int save_rt_telem(char * tmp_filename, char *rt_telem_path) {

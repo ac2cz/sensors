@@ -9,8 +9,12 @@
 #define COSMIC_WATCH_H_
 
 #include <stdint.h>
+#include <pthread.h>
 
 #define CW_RESPONSE_LEN 1024
+
+/* This is defined in cosmic_watch.c and used in sensors.c as well */
+extern pthread_mutex_t cw_mutex;
 
 typedef struct cw_data {
 	char master_slave[2];
