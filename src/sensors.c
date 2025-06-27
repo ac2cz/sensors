@@ -568,6 +568,7 @@ int read_sensors(uint32_t now) {
 			g_sensor_telemetry.MagY = stMagnRawData.s16Y;
 			g_sensor_telemetry.MagZ = stMagnRawData.s16Z;
 			g_sensor_telemetry.IMUTemp = QMI8658_readTemp();
+			g_sensor_telemetry.ImuValid = SENSOR_ON;
 		} else {
 			g_sensor_telemetry.ImuValid = SENSOR_ERR;
 		} /* if imu_status */
@@ -663,9 +664,15 @@ int read_sensors(uint32_t now) {
 
 					//printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
 				}
+
 				if (g_verbose)
 					printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
-				g_sensor_telemetry.O2_conc = (short)((o2_conc + offset)*100); // shift percentage like 20.95 to be 2095
+				if (o2_conc > 25) {
+					g_sensor_telemetry.o2_sensor_valid = SENSOR_ERR;
+					g_sensor_telemetry.O2_conc = 0;
+				} else {
+					g_sensor_telemetry.O2_conc = (short)((o2_conc + offset)*100); // shift percentage like 20.95 to be 2095
+				}
 			} else {
 				g_sensor_telemetry.O2_conc = 0;
 			}
