@@ -444,10 +444,10 @@ int read_sensors(uint32_t now) {
 			if (g_verbose)
 				printf("Could not open MQ-6 Methane sensor ADC channel %d\n",ADC_METHANE_CHAN);
 			g_sensor_telemetry.methane_conc = 0;
-			g_sensor_telemetry.methane_sensor_valid = 2;
+			g_sensor_telemetry.methane_sensor_valid = SENSOR_ERR;
 		} else {
 			g_sensor_telemetry.methane_conc = val;
-			g_sensor_telemetry.methane_sensor_valid = 1;
+			g_sensor_telemetry.methane_sensor_valid = SENSOR_ON;
 			if (g_verbose)
 				printf("MQ-6 Methane: %d,",val);
 		}
@@ -586,7 +586,8 @@ int read_sensors(uint32_t now) {
 				if (g_verbose)
 					printf("CO2: %d ppm at %d hPa\n",co2_ppm_val, pressure_ref);
 				g_sensor_telemetry.CO2_conc = co2_ppm_val;
-				g_sensor_telemetry.CO2_pressure = pressure_ref;
+				g_sensor_telemetry.CO2_pressure = 0;  // TODO - dont store this.  It is the same as the pressure value and is redundant
+				g_sensor_telemetry.co2_sensor_valid = SENSOR_ON;
 			} else {
 				if (g_verbose)
 					printf("CO2 Sensor not ready\n");
