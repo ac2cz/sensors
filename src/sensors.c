@@ -328,8 +328,8 @@ int main(int argc, char *argv[]) {
 					if (strlen(cw_raw_data.master_slave) != 0) {
 						g_sensor_telemetry.cw_raw_valid = SENSOR_ON;
 						g_sensor_telemetry.cw_raw_count = cw_raw_data.event_num;
-						g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg *6000;  // TODO - measure per min in detector, rather than multiply here
-
+						g_sensor_telemetry.cw_raw_rate = cw_raw_data.count_avg;
+						if (g_verbose) debug_print("Raw count: %d Raw Rate %d\n",g_sensor_telemetry.cw_raw_count, g_sensor_telemetry.cw_raw_rate);
 					} else {
 						g_sensor_telemetry.cw_raw_valid = SENSOR_ERR;
 						g_sensor_telemetry.cw_raw_count = 0;
@@ -338,8 +338,8 @@ int main(int argc, char *argv[]) {
 					if (strlen(cw_coincident_data.master_slave) != 0) {
 						g_sensor_telemetry.cw_coincident_valid = SENSOR_ON;
 						g_sensor_telemetry.cw_coincident_count = cw_coincident_data.event_num;
-						g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg * 6000;
-						debug_print("Co count: %d Co Rate %d\n",g_sensor_telemetry.cw_coincident_count, g_sensor_telemetry.cw_coincident_rate);
+						g_sensor_telemetry.cw_coincident_rate = cw_coincident_data.count_avg;
+						if (g_verbose) debug_print("Co count: %d Co Rate %d\n",g_sensor_telemetry.cw_coincident_count, g_sensor_telemetry.cw_coincident_rate);
 					} else {
 						g_sensor_telemetry.cw_coincident_valid = SENSOR_ERR;
 						g_sensor_telemetry.cw_coincident_count = 0;

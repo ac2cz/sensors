@@ -222,7 +222,7 @@ cw_data_t *cw_parse_data(char *str_data) {
 }
 
 void cw_debug_print_data(cw_data_t *data) {
-	debug_print("%s %d %d %.2f %.2f %d %.1f\n", data->master_slave,
+	debug_print("%s %d %d %d %.2f %d %.1f\n", data->master_slave,
 			data->event_num, data->time_ms, data->count_avg, data->sipm_voltage, data->deadtime_ms, data->temperature_deg_c);
 }
 

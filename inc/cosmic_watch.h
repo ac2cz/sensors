@@ -20,7 +20,7 @@ typedef struct cw_data {
 	char master_slave[2];
     uint16_t event_num; /* The event number */
     uint32_t time_ms;  /* Time in ms since we started.  Used for coincidence and later analysis. */
-    float count_avg;  /* The running average of counts since we started this run */
+    uint16_t count_avg;  /* The running average of counts since we started this run */
    // float count_std; /* The standard deviation of counts since we started this run */
     float sipm_voltage; /* The voltage from the scintilator block, scaled from the ADC reading with a lookup table */
     uint32_t deadtime_ms; /* The deadtime */
