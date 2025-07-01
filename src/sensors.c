@@ -434,8 +434,6 @@ int read_sensors(uint32_t now) {
 	g_sensor_telemetry.timestamp = now;
 	/* Read the PI sensors */
 
-//	mic_read_data(&sensor_telemetry);
-
 	short val;
 	int rc;
 	if (g_state_sensors_methane_enabled) {

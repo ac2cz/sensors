@@ -77,7 +77,7 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 					char log_path[MAX_FILE_PATH_LEN];
 					strlcpy(log_path, data_folder_path,MAX_FILE_PATH_LEN);
 					strlcat(log_path,"/",MAX_FILE_PATH_LEN);
-					strlcat(log_path,get_folder_str(FolderLog),MAX_FILE_PATH_LEN);
+					strlcat(log_path,get_folder_str(FolderTxt),MAX_FILE_PATH_LEN);
 					strlcat(log_path,"/",MAX_FILE_PATH_LEN);
 					if (cw_data->master_slave[0] == 'M')
 						strlcat(log_path,g_sensors_cw_raw_log_path,MAX_FILE_PATH_LEN);

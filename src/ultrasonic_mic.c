@@ -68,7 +68,6 @@ void mic_read_data() {
 	} else {
 		mic_err(SENSOR_OFF);
 	}
-
 }
 
 /**
