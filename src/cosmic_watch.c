@@ -64,9 +64,9 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 		while (*thread_status) { // monitor the serial port while program running
 			//if (g_verbose) debug_print("Waiting for CW: %s..\n",serial_dev);
 			//				int n = read(fd, response, CW_RESPONSE_LEN);
-			int n = read_serial_line(serial_dev, speed, response, CW_RESPONSE_LEN, '\r');
+			int len = read_serial_line(serial_dev, speed, response, CW_RESPONSE_LEN, '\r');
 			usleep(10*1000);
-			if (n > 0) {
+			if (len > 0) {
 				//response[n] = 0; // terminate the string
 				//debug_print("cw1##%s##",response);
 				pthread_mutex_lock(&cw_mutex);
@@ -97,7 +97,7 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 							fwrite("\n", 1, 1, fptr);
 							first_entry=false;
 						}
-						fwrite(response, 1, CW_RESPONSE_LEN, fptr);
+						fwrite(response, 1, len, fptr);
 						fwrite("\n", 1, 1, fptr);
 						fclose(fptr);
 						file_error = false;
