@@ -40,6 +40,8 @@ cw_data_t cw_coincident_data; // This is the co-incident data
 static int cw1_listen_thread_called = 0;
 static int cw2_listen_thread_called = 0;
 int debug_parsing = false;
+
+/* This is global and set in main.c */
 int debug_counts = false;
 
 /**

@@ -109,6 +109,8 @@ int imu_status = false;
 int tcs_status = false;
 int calibrate_with_dfrobot_sensor = 0;
 
+extern int debug_counts;
+
 int period_to_load_state_file = 60;
 time_t last_time_checked_state_file = 0;
 time_t last_time_checked_wod = 0;
@@ -141,6 +143,7 @@ int main(int argc, char *argv[]) {
 			{"config", required_argument, NULL, 'c'},
 			{"test", no_argument, NULL, 't'},
 			{"verbose", no_argument, NULL, 'v'},
+			{"print-cw", no_argument, NULL, 'p'},
 			{NULL, 0, NULL, 0},
 	};
 
@@ -148,7 +151,7 @@ int main(int argc, char *argv[]) {
 
 	while (1) {
 		int c;
-		if ((c = getopt_long(argc, argv, "hd:c:tv", long_option, NULL)) < 0)
+		if ((c = getopt_long(argc, argv, "hd:c:tvp", long_option, NULL)) < 0)
 			break;
 		switch (c) {
 		case 'h': // help
@@ -159,6 +162,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'v': // verbose
 			g_verbose = true;
+			break;
+		case 'p': // verbose
+			debug_counts = true;
 			break;
 		case 'c': // config file name
 			strlcpy(config_file_name, optarg, sizeof(config_file_name));
