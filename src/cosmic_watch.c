@@ -39,6 +39,8 @@ cw_data_t cw_coincident_data; // This is the co-incident data
 /* Local vars */
 static int cw1_listen_thread_called = 0;
 static int cw2_listen_thread_called = 0;
+int debug_parsing = false;
+int debug_counts = false;
 
 /**
  * This process is run for cosmic watch 1.  It listens to a serial port and collects the data that is received.
@@ -72,7 +74,7 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 				pthread_mutex_lock(&cw_mutex);
 				cw_data_t *cw_data = cw_parse_data(response);
 				if (cw_data != NULL) {
-					cw_debug_print_data(cw_data);
+					if (debug_counts) cw_debug_print_data(cw_data);
 					/* Write data to the temp file */
 					char log_path[MAX_FILE_PATH_LEN];
 					strlcpy(log_path, data_folder_path,MAX_FILE_PATH_LEN);
@@ -105,7 +107,7 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 						long size = get_file_size(tmp_filename);
 
 						if (size/1024 > g_state_sensors_cw_max_file_size_in_kb) {
-							debug_print("Rolling SENSOR CW file %s as it is: %.1f KB\n",log_path, size/1024.0);
+							if (g_verbose) printf("Rolling SENSOR CW file %s as it is: %.1f KB\n",log_path, size/1024.0);
 							log_add_to_directory(log_path);
 						}
 					} else {
@@ -153,8 +155,6 @@ void *cw2_listen_process(void * arg) {
 	debug_print("CW2 Thread.  Exiting: %s\n", data_folder_path);
 	return NULL;
 }
-
-int debug_parsing = false;
 
 cw_data_t *cw_parse_data(char *str_data) {
 	cw_data_t tmp_data;
@@ -211,11 +211,11 @@ cw_data_t *cw_parse_data(char *str_data) {
 
 	/* If all the checks passed then we assign this to the correct struct and return it */
 	if (master_slave[0] == 'M') {
-		debug_print("Particle-");
+		if (debug_counts) printf("Particle-");
 		cw_raw_data = tmp_data;
 		return &cw_raw_data;
 	} else {
-		debug_print("Coincident-");
+		if (debug_counts) printf("Coincident-");
 		cw_coincident_data = tmp_data;
 		return &cw_coincident_data;
 	}

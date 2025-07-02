@@ -463,6 +463,7 @@ int read_sensors(uint32_t now) {
 				printf("MQ-6 Methane: %d,",val);
 		}
 	} else {
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ6_EN, 0);
 		g_sensor_telemetry.methane_conc = 0;
 		g_sensor_telemetry.methane_sensor_valid = SENSOR_OFF;
 	}
@@ -483,6 +484,7 @@ int read_sensors(uint32_t now) {
 			g_sensor_telemetry.air_q_sensor_valid = SENSOR_ON;
 		}
 	} else {
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ135_EN, 0);
 		g_sensor_telemetry.air_quality = 0;
 		g_sensor_telemetry.air_q_sensor_valid = SENSOR_OFF;
 	}
@@ -615,6 +617,7 @@ int read_sensors(uint32_t now) {
 			g_sensor_telemetry.CO2_pressure = 0;
 		}
 	} else {
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_CO2_EN, 0);
 		g_sensor_telemetry.co2_sensor_valid = SENSOR_OFF;
 		g_sensor_telemetry.CO2_conc = 0;
 		g_sensor_telemetry.CO2_pressure = 0;
