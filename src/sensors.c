@@ -55,6 +55,7 @@
 #include "iors_log.h"
 #include "iors_command.h"
 #include "sensor_telemetry.h"
+#include "sensors_gpio.h"
 #include "str_util.h"
 #include "AD.h"
 #include "LPS22HB.h"
@@ -96,6 +97,7 @@ double linear_interpolation(double x, double x0, double x1, double y0, double y1
 char sensors_state_file_name[MAX_FILE_PATH_LEN] = "sensors.state";
 char config_file_name[MAX_FILE_PATH_LEN] = "sensors.config";
 char data_folder_path[MAX_FILE_PATH_LEN] = "/ariss";
+int gpio_hd = -1;
 
 sensor_telemetry_t g_sensor_telemetry;
 
@@ -214,6 +216,13 @@ int main(int argc, char *argv[]) {
 		printf("Build: %s\n", VERSION);
 	}
 
+	gpio_hd = sensors_gpio_init();
+
+	if (g_state_sensors_methane_enabled)
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ6_EN, 1);
+	if (g_state_sensors_air_q_enabled)
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ135_EN, 1);
+
 	/* Setup the IMU.  Defaults are:
 	 * 2g Accelerometer
 	 * Gyro 32dps
@@ -226,6 +235,8 @@ int main(int argc, char *argv[]) {
 	// TODO - this should come from command line so iors_control can activate it or not
     o2_status = true; // measure o2
 
+	if (g_state_sensors_co2_enabled)
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_CO2_EN, 1);
 	int res = xensiv_pasco2_init();
 	if (res == EXIT_SUCCESS) {
 		co2_status = true;
@@ -388,6 +399,7 @@ void help(void) {
 void signal_exit (int sig) {
 	if(g_verbose)
 		printf (" Signal received, exiting ...\n");
+	sensors_gpio_close();
 	TCS34087_Close();
 	lguSleep(2/1000);
 	log_alog1(INFO_LOG, g_log_filename, ALOG_SENSORS_SHUTDOWN, 0);
@@ -437,6 +449,7 @@ int read_sensors(uint32_t now) {
 	short val;
 	int rc;
 	if (g_state_sensors_methane_enabled) {
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ6_EN, 1);
 		rc = adc_read(ADC_METHANE_CHAN, &val);
 		if (rc != EXIT_SUCCESS) {
 			if (g_verbose)
@@ -455,6 +468,8 @@ int read_sensors(uint32_t now) {
 	}
 
 	if (g_state_sensors_air_q_enabled) {
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ135_EN, 1);
+
 		rc = adc_read(ADC_AIR_QUALITY_CHAN, &val);
 		if (rc != EXIT_SUCCESS) {
 			if (g_verbose)
@@ -577,6 +592,7 @@ int read_sensors(uint32_t now) {
 	/* Read the xensiv CO2 sensor
 	 * Note that this is dependant on the pressure reading */
 	if (g_state_sensors_co2_enabled) {
+		lgGpioWrite(gpio_hd, SENSORS_GPIO_CO2_EN, 1);
 		if (co2_status == true && g_sensor_telemetry.PressureValid == SENSOR_ON) {
 			uint16_t co2_ppm_val;
 			uint16_t pressure_ref = (uint16_t)(g_sensor_telemetry.LPS22_pressure/4096.0);
