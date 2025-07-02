@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
 	char tmp_filename[MAX_FILE_PATH_LEN];
 	log_make_tmp_filename(rt_telem_path, tmp_filename);
 
-	debug_print("RT Telem: %s - Length: %ld bytes\n", rt_telem_path, sizeof(g_sensor_telemetry));
+	debug_print("RT Telem: %s - Length: %d bytes\n", rt_telem_path, sizeof(g_sensor_telemetry));
 
 	/**
 	 * Start a thread to listen to the Cosmic watch.  This will write all received data into
