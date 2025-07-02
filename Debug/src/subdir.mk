@@ -11,6 +11,7 @@ C_SRCS += \
 ../src/dfrobot_gas.c \
 ../src/sensors.c \
 ../src/sensors_config.c \
+../src/sensors_gpio.c \
 ../src/serial_util.c \
 ../src/ultrasonic_mic.c \
 ../src/xensiv_pasco2.c 
@@ -23,6 +24,7 @@ C_DEPS += \
 ./src/dfrobot_gas.d \
 ./src/sensors.d \
 ./src/sensors_config.d \
+./src/sensors_gpio.d \
 ./src/serial_util.d \
 ./src/ultrasonic_mic.d \
 ./src/xensiv_pasco2.d 
@@ -35,6 +37,7 @@ OBJS += \
 ./src/dfrobot_gas.o \
 ./src/sensors.o \
 ./src/sensors_config.o \
+./src/sensors_gpio.o \
 ./src/serial_util.o \
 ./src/ultrasonic_mic.o \
 ./src/xensiv_pasco2.o 
@@ -52,7 +55,7 @@ src/%.o: ../src/%.c src/subdir.mk
 clean: clean-src
 
 clean-src:
-	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/cosmic_watch.d ./src/cosmic_watch.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/sensors_config.d ./src/sensors_config.o ./src/serial_util.d ./src/serial_util.o ./src/ultrasonic_mic.d ./src/ultrasonic_mic.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
+	-$(RM) ./src/AD.d ./src/AD.o ./src/LPS22HB.d ./src/LPS22HB.o ./src/SHTC3.d ./src/SHTC3.o ./src/cosmic_watch.d ./src/cosmic_watch.o ./src/dfrobot_gas.d ./src/dfrobot_gas.o ./src/sensors.d ./src/sensors.o ./src/sensors_config.d ./src/sensors_config.o ./src/sensors_gpio.d ./src/sensors_gpio.o ./src/serial_util.d ./src/serial_util.o ./src/ultrasonic_mic.d ./src/ultrasonic_mic.o ./src/xensiv_pasco2.d ./src/xensiv_pasco2.o
 
 .PHONY: clean-src
 
