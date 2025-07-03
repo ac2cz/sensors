@@ -721,6 +721,9 @@ int read_sensors(uint32_t now) {
 		if (dfr_gas_read(&gas_temp, &gas_conc) != EXIT_SUCCESS) {
 			if (g_verbose)
 				printf("Could not open DF Robot O2 Sensor\n");
+		} else {
+			printf("O2 Cal = %6.1f%%, Temperature = %6.2f°C\n", gas_conc/100.0, gas_temp/100.0);
+			g_sensor_telemetry.O2_conc = gas_conc;
 		}
 	}
 
