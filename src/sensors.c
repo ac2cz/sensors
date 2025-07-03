@@ -238,7 +238,7 @@ int main(int argc, char *argv[]) {
 		if (imu_status == false) printf("QMI8658_init fail\n");
 	//	debug_print("IMU State: %d\n",g_imu_state);
 
-	// TODO - this should come from command line so iors_control can activate it or not
+	// TODO - redundant??
     o2_status = true; // measure o2
 
 	if (g_state_sensors_co2_enabled)
@@ -631,6 +631,9 @@ int read_sensors(uint32_t now) {
 		if (o2_status && g_sensor_telemetry.PressureValid == SENSOR_ON) {
 			int c=0;
 			float avg=0.0, max=0.0,min=65555;
+			// Dummy read which will be low
+			rc = adc_read(ADC_O2_CHAN, &val);
+			sleep(1);
 			while (c < 10) {
 				rc = adc_read(ADC_O2_CHAN, &val);
 				if (rc != EXIT_SUCCESS) {
@@ -639,12 +642,12 @@ int read_sensors(uint32_t now) {
 					g_sensor_telemetry.o2_sensor_valid = SENSOR_ERR;
 					break;
 				} else {
-					//					rttelemetry.BatteryV = val;
 					//float volts = val * 0.125;
 					//float o2_conc = -0.01805 * volts + 44.5835;
 					//			printf("%.2f%% ..\n",o2_conc);
-					//	if (g_verbose)
-					//		printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
+				//		if (g_verbose)
+				//			printf("PS1 O2 : %d(%0.0fmv)\n", val,(float)volts);
+							//printf("PS1 O2 Conc: %.2f%% %d(%0.0fmv)\n",o2_conc, val,(float)volts);
 					if (val > max) max = val;
 					if (val < min) min = val;
 					avg+= val;
@@ -655,8 +658,8 @@ int read_sensors(uint32_t now) {
 			}
 			avg = avg / c;
 			float volts = avg * 0.125;
-			float o2_conc = -0.01805 * volts + 44.5835;
-			//float o2_conc = -0.0103 * volts + 25.103;
+			float o2_conc = -0.0354 * volts + 86.434;
+			// VE2TCP prototype - float o2_conc = -0.01805 * volts + 44.5835;
 
 			if (c > 0 && g_sensor_telemetry.o2_sensor_valid == SENSOR_ON) {
 				g_sensor_telemetry.O2_raw = volts;
