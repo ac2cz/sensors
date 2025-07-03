@@ -98,6 +98,7 @@ char sensors_state_file_name[MAX_FILE_PATH_LEN] = "sensors.state";
 char config_file_name[MAX_FILE_PATH_LEN] = "sensors.config";
 char data_folder_path[MAX_FILE_PATH_LEN] = "/ariss";
 int gpio_hd = -1;
+float board_temperature = 0.0;
 
 sensor_telemetry_t g_sensor_telemetry;
 
@@ -126,9 +127,9 @@ double o2_temp_table[O2_TEMPERATURE_TABLE_LEN][2] = {
 		{0.0, 3.0}
 		,{10.0, 1.0}
 		,{20.0,0.0}
-		,{30,-0.5}
-		,{40.0,-1.0}
-		,{50.0,-1.5}
+		,{30,-1.0}
+		,{40.0,-2.0}
+		,{50.0,-3.0}
 };
 
 int main(int argc, char *argv[]) {
@@ -522,9 +523,9 @@ int read_sensors(uint32_t now) {
 
 			if (g_verbose) {
 				float TH_Value, RH_Value;
-				TH_Value = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
+				board_temperature = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
 				RH_Value = 100 * (float)humidity / 65536.0f;         // Calculate humidity value
-				printf("Temperature = %6.2f°C , Humidity = %6.2f%% \n", TH_Value, RH_Value);
+				printf("Temperature = %6.2f°C , Humidity = %6.2f%% \n", board_temperature, RH_Value);
 			}
 		}
 	} else {
@@ -628,7 +629,7 @@ int read_sensors(uint32_t now) {
 	/* Read the PS1 solid state O2 sensor.  Average 10 readings over 10 seconds
 	 * Note this is dependant on the temperature reading from the pressure sensor */
 	if (g_state_sensors_o2_enabled) {
-		if (o2_status && g_sensor_telemetry.PressureValid == SENSOR_ON) {
+		if (o2_status && g_sensor_telemetry.TempHumidityValid == SENSOR_ON) {
 			int c=0;
 			float avg=0.0, max=0.0,min=65555;
 			// Dummy read which will be low
@@ -670,23 +671,23 @@ int read_sensors(uint32_t now) {
 				double last_key = 0;
 				double first_value = 0;
 				double last_value = 0;
-				double temp = g_sensor_telemetry.LPS22_temp/100.0;
+				//double temp = g_sensor_telemetry.LPS22_temp/100.0;
 
-				if (temp >= 0 && temp <= 50) {
+				if (board_temperature >= 0 && board_temperature <= 50) {
 					while (i++ < O2_TEMPERATURE_TABLE_LEN) {
-						if (o2_temp_table[i][0] < temp) {
+						if (o2_temp_table[i][0] < board_temperature) {
 							first_key = o2_temp_table[i][0];
 							first_value = o2_temp_table[i][1];
 						}
-						if (o2_temp_table[i][0] > temp) {
+						if (o2_temp_table[i][0] > board_temperature) {
 							last_key = o2_temp_table[i][0];
 							last_value = o2_temp_table[i][1];
 							break;
 						}
 					}
-					offset = linear_interpolation(temp, first_key, last_key, first_value, last_value);
+					offset = linear_interpolation(board_temperature, first_key, last_key, first_value, last_value);
 
-					//printf("Lookup: keys: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
+					printf("Lookup: between: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
 				}
 
 				if (g_verbose)
