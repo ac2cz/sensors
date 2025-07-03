@@ -522,7 +522,7 @@ int read_sensors(uint32_t now) {
 			g_sensor_telemetry.TempHumidityValid = SENSOR_ON;
 
 			if (g_verbose) {
-				float TH_Value, RH_Value;
+				float RH_Value;
 				board_temperature = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
 				RH_Value = 100 * (float)humidity / 65536.0f;         // Calculate humidity value
 				printf("Temperature = %6.2f°C , Humidity = %6.2f%% \n", board_temperature, RH_Value);
@@ -686,6 +686,7 @@ int read_sensors(uint32_t now) {
 						}
 					}
 					offset = linear_interpolation(board_temperature, first_key, last_key, first_value, last_value);
+					//offset = -0.6667 * board_temperature * board_temperature + 37.667 * board_temperature - 531.24;
 
 					printf("Lookup: between: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
 				}
