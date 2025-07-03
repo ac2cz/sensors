@@ -3,6 +3,15 @@
  *
  *  Created on: Jun 9, 2025
  *      Author: g0kla
+ *
+ * The ultrasonic mic is read by the ADC of a PI Pico.  This program communicates with the
+ * PI Pico over serial.
+ * It can also set the gain of the preamplifier over I2C.
+ * The Preamp is an OPA356 op amp.  The gain is set using an MCP4552-103 programable resistor.
+ * The MCP4552:
+ *   Is a 10K resistor programable that defaults to mid scale and give a gain of about 20
+ *   Maximum gain will be about 200.
+ *   has I2C address
  */
 #include <sensors_config.h>
 #include <stdio.h>

@@ -608,25 +608,21 @@ int read_sensors(uint32_t now) {
 				if (g_verbose)
 					printf("CO2: %d ppm at %d hPa\n",co2_ppm_val, pressure_ref);
 				g_sensor_telemetry.CO2_conc = co2_ppm_val;
-				g_sensor_telemetry.CO2_pressure = 0;  // TODO - dont store this.  It is the same as the pressure value and is redundant
 				g_sensor_telemetry.co2_sensor_valid = SENSOR_ON;
 			} else {
 				if (g_verbose)
 					printf("CO2 Sensor not ready\n");
 				g_sensor_telemetry.co2_sensor_valid = SENSOR_ERR;
 				g_sensor_telemetry.CO2_conc = 0;
-				g_sensor_telemetry.CO2_pressure = 0;
 			}
 		} else {
 			g_sensor_telemetry.co2_sensor_valid = SENSOR_ERR;
 			g_sensor_telemetry.CO2_conc = 0;
-			g_sensor_telemetry.CO2_pressure = 0;
 		}
 	} else {
 		lgGpioWrite(gpio_hd, SENSORS_GPIO_CO2_EN, 0);
 		g_sensor_telemetry.co2_sensor_valid = SENSOR_OFF;
 		g_sensor_telemetry.CO2_conc = 0;
-		g_sensor_telemetry.CO2_pressure = 0;
 	}
 
 	/* Read the PS1 solid state O2 sensor.  Average 10 readings over 10 seconds
@@ -663,6 +659,7 @@ int read_sensors(uint32_t now) {
 			//float o2_conc = -0.0103 * volts + 25.103;
 
 			if (c > 0 && g_sensor_telemetry.o2_sensor_valid == SENSOR_ON) {
+				g_sensor_telemetry.O2_raw = volts;
 				/* Compensate for Temperature,  Look up temperature in table and interpolate the correction amount */
 				int i = 0;
 				double offset = 0.0;
@@ -691,7 +688,7 @@ int read_sensors(uint32_t now) {
 
 				if (g_verbose)
 					printf("PS1 O2 Conc: %.2f (%.2f) %d(%0.2fmv) max:%0.2f min:%0.2f\n",o2_conc + offset, o2_conc, val,(float)volts, max*0.125, min*0.125);
-				if (o2_conc > 25) {
+				if (o2_conc > 25 || o2_conc < 0) {
 					g_sensor_telemetry.o2_sensor_valid = SENSOR_ERR;
 					g_sensor_telemetry.O2_conc = 0;
 				} else {
@@ -699,14 +696,17 @@ int read_sensors(uint32_t now) {
 				}
 			} else {
 				g_sensor_telemetry.O2_conc = 0;
+				g_sensor_telemetry.O2_raw = 0;
 			}
 		} else {
 			g_sensor_telemetry.o2_sensor_valid = SENSOR_ERR;
 			g_sensor_telemetry.O2_conc = 0;
+			g_sensor_telemetry.O2_raw = 0;
 		} /* if o2_status */
 	} else {
 		g_sensor_telemetry.o2_sensor_valid = SENSOR_OFF;
 		g_sensor_telemetry.O2_conc = 0;
+		g_sensor_telemetry.O2_raw = 0;
 	} /* if g_state_sensors_o2_enabled */
 
 	/* If we are calibrating the O2 sensor then output values from dfrobot sensor if connected */
