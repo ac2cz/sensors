@@ -59,7 +59,7 @@ void mic_read_data() {
 	if (g_state_sensors_cosmic_watch_enabled) {
 
 		int rc = serial_send_cmd(g_mic_serial_dev, B38400, cmd, cmd_len, response, MIC_RESPONSE_LEN);
-		debug_print("%s\n",response);
+//		debug_print("%s\n",response);
 		if (rc > 0) {
 			if (response[0] == 'D') { // We have data
 				for (i=0; i<32; i++) {
