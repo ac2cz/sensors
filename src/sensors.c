@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
 	char wod_telem_path[MAX_FILE_PATH_LEN];
 	strlcpy(wod_telem_path, data_folder_path,MAX_FILE_PATH_LEN);
 	strlcat(wod_telem_path,"/",MAX_FILE_PATH_LEN);
-	strlcat(wod_telem_path,get_folder_str(FolderWod),MAX_FILE_PATH_LEN);
+	strlcat(wod_telem_path,get_folder_str(FolderSenWod),MAX_FILE_PATH_LEN);
 	strlcat(wod_telem_path,"/",MAX_FILE_PATH_LEN);
 	strlcat(wod_telem_path,g_sensors_wod_telem_path,MAX_FILE_PATH_LEN);
 
@@ -267,7 +267,7 @@ int main(int argc, char *argv[]) {
 	char tmp_filename[MAX_FILE_PATH_LEN];
 	log_make_tmp_filename(rt_telem_path, tmp_filename);
 
-	debug_print("RT Telem: %s - Length: %d bytes\n", rt_telem_path, sizeof(g_sensor_telemetry));
+	debug_print("RT Telem: %s - Length: %d bytes\n", rt_telem_path, (int)sizeof(g_sensor_telemetry));
 
 	/**
 	 * Start a thread to listen to the Cosmic watch.  This will write all received data into
