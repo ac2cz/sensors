@@ -697,7 +697,8 @@ int read_sensors(uint32_t now) {
 					g_sensor_telemetry.o2_sensor_valid = SENSOR_ERR;
 					g_sensor_telemetry.O2_conc = 0;
 				} else {
-					g_sensor_telemetry.O2_conc = (short)((o2_conc + offset)*100); // shift percentage like 20.95 to be 2095
+					//g_sensor_telemetry.O2_conc = (short)((o2_conc + offset)*100); // shift percentage like 20.95 to be 2095
+					g_sensor_telemetry.O2_conc = (short)((o2_conc - (0.769852 *(board_temperature - 24.90947)))*100);
 				}
 			} else {
 				g_sensor_telemetry.O2_conc = 0;
