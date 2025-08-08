@@ -315,16 +315,12 @@ int main(int argc, char *argv[]) {
 					} else {
 						if (g_verbose)
 							printf("Wrote WOD file: %s at %d\n",g_sensors_wod_telem_path, g_sensor_telemetry.timestamp);
-						if (size/1024 > g_state_sensors_wod_max_file_size_in_kb) {
-							debug_print("Rolling WOD file as it is: %.1f KB\n", size/1024.0);
-							log_add_to_directory(wod_telem_path);
-						}
 					}
 
 					/* If we have exceeded the WOD size threshold then roll the WOD file */
 					if (size/1024 > g_state_sensors_wod_max_file_size_in_kb) {
 						debug_print("Rolling SENSOR WOD file as it is: %.1f KB\n", size/1024.0);
-						log_add_to_directory(g_sensors_wod_telem_path);
+						log_add_to_directory(wod_telem_path);
 					}
 
 				}
@@ -406,8 +402,9 @@ void help(void) {
 void signal_exit (int sig) {
 	if(g_verbose)
 		printf (" Signal received, exiting ...\n");
-	sensors_gpio_close();
 	TCS34087_Close();
+	imuClose();
+	sensors_gpio_close();
 	lguSleep(2/1000);
 	log_alog1(INFO_LOG, g_log_filename, ALOG_SENSORS_SHUTDOWN, 0);
 	exit (0);
@@ -521,9 +518,9 @@ int read_sensors(uint32_t now) {
 			g_sensor_telemetry.SHTC3_humidity = humidity;
 			g_sensor_telemetry.TempHumidityValid = SENSOR_ON;
 
+			board_temperature = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value, which we use to compensate O2
 			if (g_verbose) {
 				float RH_Value;
-				board_temperature = 175 * (float)temperature / 65536.0f - 45.0f; // Calculate temperature value
 				RH_Value = 100 * (float)humidity / 65536.0f;         // Calculate humidity value
 				printf("Temperature = %6.2f°C , Humidity = %6.2f%% \n", board_temperature, RH_Value);
 			}
@@ -688,7 +685,8 @@ int read_sensors(uint32_t now) {
 					offset = linear_interpolation(board_temperature, first_key, last_key, first_value, last_value);
 					//offset = -0.6667 * board_temperature * board_temperature + 37.667 * board_temperature - 531.24;
 
-					printf("Lookup: between: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
+					if (g_verbose)
+					    printf("Lookup: between: %2.1f %2.1f compensate by: %2.3f\n",first_key, last_key, offset);
 				}
 
 				if (g_verbose)
