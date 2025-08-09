@@ -58,7 +58,7 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 	FILE *fptr;
 	int file_error = false;
 	int first_entry = true;
-
+    int max_file_size = g_state_sensors_cw_raw_max_file_size_in_kb;
 
 
 	// Test that we can open the serial, otherwise we get errors continually
@@ -83,39 +83,43 @@ int cw_listen_process(char *data_folder_path, char *serial_dev, speed_t speed, i
 					strlcat(log_path,"/",MAX_FILE_PATH_LEN);
 					strlcat(log_path,get_folder_str(FolderTxt),MAX_FILE_PATH_LEN);
 					strlcat(log_path,"/",MAX_FILE_PATH_LEN);
-					if (cw_data->master_slave[0] == 'M')
+					if (cw_data->master_slave[0] == 'M') {
+						max_file_size = g_state_sensors_cw_raw_max_file_size_in_kb;
 						strlcat(log_path,g_sensors_cw_raw_log_path,MAX_FILE_PATH_LEN);
-					else
-						strlcat(log_path,g_sensors_cw_coincident_log_path,MAX_FILE_PATH_LEN);
-
-					char tmp_filename[MAX_FILE_PATH_LEN];
-					log_make_tmp_filename(log_path, tmp_filename);
-					fptr = fopen(tmp_filename, "a");
-					if (fptr != NULL) {
-						if (first_entry) {
-							/* *Write the date time */
-							char data_str[256];
-							time_t now = time(0);
-							strftime(data_str, sizeof(data_str), "SOOSS CosmicWatch start: %y%m%d %H%M%S UTC", gmtime(&now));
-							fwrite(data_str, 1, 256, fptr);
-							fwrite("\n", 1, 1, fptr);
-							first_entry=false;
-						}
-						fwrite(response, 1, len, fptr);
-						fwrite("\n", 1, 1, fptr);
-						fclose(fptr);
-						file_error = false;
-
-						long size = get_file_size(tmp_filename);
-
-						if (size/1024 > g_state_sensors_cw_max_file_size_in_kb) {
-							if (g_verbose) printf("Rolling SENSOR CW file %s as it is: %.1f KB\n",log_path, size/1024.0);
-							log_add_to_directory(log_path);
-						}
 					} else {
-						if (!file_error)
-							log_err(g_log_filename, SENSOR_ERR_CW_FAILURE);
-						file_error = true;
+						max_file_size = g_state_sensors_cw_coincident_max_file_size_in_kb;
+						strlcat(log_path,g_sensors_cw_coincident_log_path,MAX_FILE_PATH_LEN);
+					}
+					if (max_file_size != 0) {
+						char tmp_filename[MAX_FILE_PATH_LEN];
+						log_make_tmp_filename(log_path, tmp_filename);
+						fptr = fopen(tmp_filename, "a");
+						if (fptr != NULL) {
+							if (first_entry) {
+								/* *Write the date time */
+								char data_str[256];
+								time_t now = time(0);
+								strftime(data_str, sizeof(data_str), "SOOSS CosmicWatch start: %y%m%d %H%M%S UTC", gmtime(&now));
+								fwrite(data_str, 1, 256, fptr);
+								fwrite("\n", 1, 1, fptr);
+								first_entry=false;
+							}
+							fwrite(response, 1, len, fptr);
+							fwrite("\n", 1, 1, fptr);
+							fclose(fptr);
+							file_error = false;
+
+							long size = get_file_size(tmp_filename);
+
+							if (size/1024 > max_file_size) {
+								if (g_verbose) printf("Rolling SENSOR CW file %s as it is: %.1f KB\n",log_path, size/1024.0);
+								log_add_to_directory(log_path);
+							}
+						} else {
+							if (!file_error)
+								log_err(g_log_filename, SENSOR_ERR_CW_FAILURE);
+							file_error = true;
+						}
 					}
 				} /* If cw_data != NULL */
 				pthread_mutex_unlock(&cw_mutex);
@@ -158,6 +162,14 @@ void *cw2_listen_process(void * arg) {
 	return NULL;
 }
 
+/**
+ * This parses the data from the cosmic watch and stores it in either the raw or coincident
+ * data structure.  This is the storage area used to send real time or save wod sensor data.
+ * This also returns a handle to the data, just for convenience in the routine that called it,
+ * so they can check if it is the master or the slave and save the data to the log if required.
+ * TODO - saving the data to the common stucts within this function is not obvious and could,
+ * perhaps, be raised up to the calling function.
+ */
 cw_data_t *cw_parse_data(char *str_data) {
 	cw_data_t tmp_data;
 
