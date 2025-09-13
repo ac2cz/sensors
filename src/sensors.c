@@ -382,7 +382,7 @@ int main(int argc, char *argv[]) {
 			load_sensors_state(sensors_state_file_name, g_verbose); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
 		}
 
-		if (g_num_of_file_io_errors++ > MAX_NUMBER_FILE_IO_ERRORS) {
+		if (g_num_of_file_io_errors > MAX_NUMBER_FILE_IO_ERRORS) {
 			log_err(g_log_filename, IORS_ERR_MAX_FILE_IO_ERRORS);
 			signal_exit(0);
 		}
