@@ -32,6 +32,8 @@
 #define SENSOR_ON 1
 #define SENSOR_ERR 2
 
+#define MAX_NUMBER_FILE_IO_ERRORS 5
+
 /* These global variables are not in the config file */
 extern int g_run_self_test;    /* true when the self test is running */
 extern int g_verbose;          /* print verbose output when set */

@@ -121,6 +121,8 @@ pthread_t cw1_listen_pthread = 0;
 pthread_t cw2_listen_pthread = 0;
 pthread_t mic_listen_pthread = 0;
 
+int g_num_of_file_io_errors = 0; // the cumulative number of file io errors
+
 /* Temperature compensation table for O2 saensor */
 #define O2_TEMPERATURE_TABLE_LEN 6
 double o2_temp_table[O2_TEMPERATURE_TABLE_LEN][2] = {
@@ -308,10 +310,10 @@ int main(int argc, char *argv[]) {
 					pthread_mutex_lock(&cw_mutex);
 					long size = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
 					pthread_mutex_unlock(&cw_mutex);
-					if (size < 0) {
+					if (size < sizeof(g_sensor_telemetry)) {
 						if (g_verbose)
 							printf("ERROR, could not save data to filename: %s\n",g_sensors_wod_telem_path);
-						//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
+						g_num_of_file_io_errors++;
 					} else {
 						if (g_verbose)
 							printf("Wrote WOD file: %s at %d\n",g_sensors_wod_telem_path, g_sensor_telemetry.timestamp);
@@ -380,6 +382,11 @@ int main(int argc, char *argv[]) {
 			load_sensors_state(sensors_state_file_name, g_verbose); /* We load the state each cycle, which is normally at least 30 seconds, in case iors_control has changed something */
 		}
 
+		if (g_num_of_file_io_errors > MAX_NUMBER_FILE_IO_ERRORS) {
+			log_err(g_log_filename, IORS_ERR_MAX_FILE_IO_ERRORS);
+			signal_exit(0);
+		}
+
 	} /* while (1) */
 }
 
@@ -400,7 +407,7 @@ void help(void) {
 
 
 void signal_exit (int sig) {
-	if(g_verbose)
+	if(g_verbose && sig > 0)
 		printf (" Signal received, exiting ...\n");
 	TCS34087_Close();
 	imuClose();
@@ -431,6 +438,7 @@ int save_rt_telem(char * tmp_filename, char *rt_telem_path) {
 		if (rename(tmp_filename, rt_telem_path) != EXIT_SUCCESS) {
 			if (g_verbose)
 				printf("ERROR, could not rename RT telem filename from: %s to: %s\n",tmp_filename, g_sensors_rt_telem_path);
+			g_num_of_file_io_errors++;
 		} else {
 			if (g_verbose)
 				printf("Wrote RT file: %s at %d\n",g_sensors_rt_telem_path, g_sensor_telemetry.timestamp);
@@ -439,6 +447,7 @@ int save_rt_telem(char * tmp_filename, char *rt_telem_path) {
 	} else {
 		if (g_verbose)
 			printf("ERROR, could not save data to filename: %s\n",g_sensors_rt_telem_path);
+		g_num_of_file_io_errors++;
 		return EXIT_FAILURE;
 		//TODO - store error.  Repeating errors like this should go in the error count, otherwise they would fill the log.
 	}
