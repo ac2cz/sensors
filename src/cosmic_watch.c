@@ -15,8 +15,8 @@
 #include <time.h>
 #include <pthread.h>
 
-#include "iors_log.h"
-#include "iors_command.h"
+#include "pacsat_log.h"
+#include "uplink_command.h"
 #include "sensors_state_file.h"
 #include "debug.h"
 #include "serial_util.h"

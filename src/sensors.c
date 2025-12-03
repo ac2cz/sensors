@@ -52,8 +52,8 @@
 
 #include "sensors_config.h"
 #include "sensors_state_file.h"
-#include "iors_log.h"
-#include "iors_command.h"
+#include "pacsat_log.h"
+#include "uplink_command.h"
 #include "sensor_telemetry.h"
 #include "sensors_gpio.h"
 #include "str_util.h"
