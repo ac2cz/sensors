@@ -13,6 +13,8 @@
  *   Maximum gain will be about 200.
  *   has I2C address
  */
+
+#ifdef HAS_ULTRASONIC_MIC
 #include <sensors_config.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,5 +120,5 @@ void *mic_listen_process(void * arg) {
 	return NULL;
 }
 
-
+#endif
 

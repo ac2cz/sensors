@@ -6,6 +6,8 @@
  */
 
 
+#ifdef HAS_COSMIC_WATCH
+
 #include <sensors_config.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -248,5 +250,5 @@ void cw2_exit_listen_process() {
 	cw2_listen_thread_called = false;
 }
 
-
+#endif
 

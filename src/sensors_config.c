@@ -35,16 +35,23 @@
 
 /* Define paramaters for config file */
 #define MAX_CONFIG_LINE_LENGTH 128
+#ifdef HAS_ULTRASONIC_MIC
 #define CONFIG_MIC_SERIAL_DEVICE "mic_serial_device"
+#endif
+#ifdef HAS_COSMIC_WATCH
 #define CONFIG_CW1_SERIAL_DEVICE "cw1_serial_device"
 #define CONFIG_CW2_SERIAL_DEVICE "cw2_serial_device"
+#endif
 #define CONFIG_PERIOD_TO_SAMPLE_TELEM_IN_SECONDS "period_to_sample_telem_in_seconds"
 
 /* These global variables are in the sensors_config.h file */
+#ifdef HAS_ULTRASONIC_MIC
 char g_mic_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial0"; // device name for the serial port for ultrasonic mic
+#endif
+#ifdef HAS_COSMIC_WATCH
 char g_cw1_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial1"; // device name for the serial port for cosmic watch
 char g_cw2_serial_dev[MAX_FILE_PATH_LEN] = "/dev/serial2"; // device name for the serial port for cosmic watch
-
+#endif
 #include <sensors_config.h>
 
 void load_config(char *filename) {
@@ -69,6 +76,7 @@ void load_config(char *filename) {
 				debug_print(" %s",key);
 				value[strcspn(value,"\n")] = 0; // Move the nul termination to get rid of the new line
 				debug_print(" = %s\n",value);
+#ifdef HAS_ULTRASONIC_MIC // & HAS_COSMIC_WATCH
 				if (strcmp(key, CONFIG_MIC_SERIAL_DEVICE) == 0) {
 					strlcpy(g_mic_serial_dev, value,sizeof(g_mic_serial_dev));
 				} else if (strcmp(key, CONFIG_CW1_SERIAL_DEVICE) == 0) {
@@ -78,6 +86,7 @@ void load_config(char *filename) {
 				} else {
 					error_print("Unknown key in %s file: %s\n",filename, key);
 				}
+#endif
 			}
 		}
 		fclose ( file );

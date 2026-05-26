@@ -28,6 +28,14 @@
 
 #define VERSION __DATE__ " ARISS Sensors - Version 0.1a"
 
+/* Change these if they are present */
+#define NO_COSMIC_WATCH // HAS_COSMIC_WATCH
+#define NO_ULTRASONIC_MIC // HAS_ULTRASONIC_MIC
+#define NO_GAS_SENSORS // HAS_GAS_SENSORS
+#define NO_WAVESHARE_SENSE_HAT // HAS_WAVESHARE_SENSE_HAT
+#define HAS_PI_SENSE_HAT
+
+
 #define SENSOR_OFF 0
 #define SENSOR_ON 1
 #define SENSOR_ERR 2
@@ -39,15 +47,21 @@ extern int g_run_self_test;    /* true when the self test is running */
 extern int g_verbose;          /* print verbose output when set */
 extern char g_log_filename[MAX_FILE_PATH_LEN];
 extern sensor_telemetry_t g_sensor_telemetry;
+
+#ifdef HAS_COSMIC_WATCH
 extern cw_data_t cw_raw_data;
 extern cw_data_t cw_coincident_data;
 
+#endif
 
 /* These are declared here and defined in sensors.c */
+#ifdef HA_ULTRASONIC_MIC
 extern char g_mic_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for ultrasonic mic
+#endif
+#ifdef HAS_COSMIC_WATCH
 extern char g_cw1_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for cosmic watch
 extern char g_cw2_serial_dev[MAX_FILE_PATH_LEN]; // device name for the serial port for cosmic watch
-
+#endif
 void load_config(char *filename);
 
 #endif /* CONFIG_H_ */

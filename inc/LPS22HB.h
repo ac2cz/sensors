@@ -1,6 +1,10 @@
 #ifndef _LPS22HB_H
 #define _LPS22HB_H
 
+#include "sensors_config.h"
+
+#ifdef HAS_WAVESHARE_SENSE_HAT
+
 //i2c address
 #define LPS22HB_I2C_ADDRESS		0x5C
 //

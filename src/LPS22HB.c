@@ -1,3 +1,6 @@
+
+#include "sensors_config.h"
+#ifdef HAS_WAVESHARE_SENSE_HAT
 #include <stdlib.h>
 #include <lgpio.h>
 #include <stdio.h>
@@ -79,3 +82,4 @@ int LPS22HB_read(int *pressure, short *temperature) {
 	lgI2cClose(lps22_fd);
 	return EXIT_SUCCESS;
 }
+#endif

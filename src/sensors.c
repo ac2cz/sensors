@@ -11,6 +11,8 @@
  - The RT telemetry file, which contains one line of data and is overwritten with new data
  - The WOD telemetry file, which is appended until the file is rolled or a max size as
    a safety precaution.
+
+ If they are connected it also writes:
  - A file for events from the CosmicWatch
  - A file for detailed data from the Ultrasonic Microphone
 
@@ -68,10 +70,14 @@
 #include "dfrobot_gas.h"
 
 #define MAX_FILE_PATH_LEN 256
+#ifdef HAS_GAS_SENSORS
 #define ADC_O2_CHAN 2
 #define ADC_METHANE_CHAN 0
 #define ADC_AIR_QUALITY_CHAN 1
+#endif
+#ifdef HAS_WAVESHARE_SENSE_HAT
 #define ADC_BUS_V_CHAN 3
+#endif
 
 /*
  *  GLOBAL VARIABLES defined here.  They are declared in config.h
@@ -104,26 +110,12 @@ sensor_telemetry_t g_sensor_telemetry;
 
 //int PERIOD=10;
 //char filename[MAX_FILE_PATH_LEN];
+#ifdef HAS_GAS_SENSORS
 int co2_status = false;
 int o2_status = false;
-int imu_status = false;
-int tcs_status = false;
 int calibrate_with_dfrobot_sensor = 0;
-
-extern int debug_counts;
-
-int period_to_load_state_file = 60;
-time_t last_time_checked_state_file = 0;
-time_t last_time_checked_wod = 0;
-time_t last_time_checked_period_to_sample_telem = 0;
-
-pthread_t cw1_listen_pthread = 0;
-pthread_t cw2_listen_pthread = 0;
-pthread_t mic_listen_pthread = 0;
-
-int g_num_of_file_io_errors = 0; // the cumulative number of file io errors
-
 /* Temperature compensation table for O2 saensor */
+
 #define O2_TEMPERATURE_TABLE_LEN 6
 double o2_temp_table[O2_TEMPERATURE_TABLE_LEN][2] = {
 		{0.0, 3.0}
@@ -133,6 +125,30 @@ double o2_temp_table[O2_TEMPERATURE_TABLE_LEN][2] = {
 		,{40.0,-2.0}
 		,{50.0,-3.0}
 };
+
+#endif
+#ifdef HAS_WAVESHARE_SENSE_HAT
+int imu_status = false;
+int tcs_status = false;
+#endif
+
+#ifdef HAS_COSMIC_WATCH
+extern int debug_counts;
+#endif
+
+int period_to_load_state_file = 60;
+time_t last_time_checked_state_file = 0;
+time_t last_time_checked_wod = 0;
+time_t last_time_checked_period_to_sample_telem = 0;
+
+#ifdef HAS_COSMIC_WATCH
+pthread_t cw1_listen_pthread = 0;
+pthread_t cw2_listen_pthread = 0;
+pthread_t mic_listen_pthread = 0;
+#endif
+
+int g_num_of_file_io_errors = 0; // the cumulative number of file io errors
+
 
 int main(int argc, char *argv[]) {
 	signal (SIGQUIT, signal_exit);
@@ -160,14 +176,18 @@ int main(int argc, char *argv[]) {
 		case 'h': // help
 			more_help = true;
 			break;
-		case 't': // calibrate
+		case 't': // test/calibrate
+#ifdef HAS_GAS_SENSORS
 			calibrate_with_dfrobot_sensor = 1;
+#endif
 			break;
 		case 'v': // verbose
 			g_verbose = true;
 			break;
 		case 'p': // verbose
+#ifdef HAS_COSMIC_WATCH
 			debug_counts = true;
+#endif
 			break;
 		case 'c': // config file name
 			strlcpy(config_file_name, optarg, sizeof(config_file_name));
@@ -227,19 +247,11 @@ int main(int argc, char *argv[]) {
 
 	gpio_hd = sensors_gpio_init();
 
+#ifdef HAS_GAS_SENSORS
 	if (g_state_sensors_methane_enabled)
 		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ6_EN, 1);
 	if (g_state_sensors_air_q_enabled)
 		lgGpioWrite(gpio_hd, SENSORS_GPIO_MQ135_EN, 1);
-
-	/* Setup the IMU.  Defaults are:
-	 * 2g Accelerometer
-	 * Gyro 32dps
-	 * Mag is -4912 to 4912uT, for 2s complement 16 bit result */
-	imu_status = imuInit();
-	if (g_verbose)
-		if (imu_status == false) printf("QMI8658_init fail\n");
-	//	debug_print("IMU State: %d\n",g_imu_state);
 
 	// TODO - redundant??
     o2_status = true; // measure o2
@@ -253,6 +265,17 @@ int main(int argc, char *argv[]) {
 		if (g_verbose)
 			printf("Could not open CO2 gas sensor: %d\n",res);
 	}
+#endif
+
+#ifdef HAS_WAVESHARE_SENSE_HAT
+	/* Setup the IMU.  Defaults are:
+	 * 2g Accelerometer
+	 * Gyro 32dps
+	 * Mag is -4912 to 4912uT, for 2s complement 16 bit result */
+	imu_status = imuInit();
+	if (g_verbose)
+		if (imu_status == false) printf("QMI8658_init fail\n");
+	//	debug_print("IMU State: %d\n",g_imu_state);
 
 	/* We may need to pass the gain through from config.  We would add to the command line so iors_control
 	 * can set it */
@@ -264,6 +287,8 @@ int main(int argc, char *argv[]) {
 		if (g_verbose)
 			printf("Could not open TCS34087 light/color sensor\n");
 	}
+#endif
+
 
 	/* Make a tmp filename so that atomic writes to the RT file can be made with a rename */
 	char tmp_filename[MAX_FILE_PATH_LEN];
@@ -271,6 +296,7 @@ int main(int argc, char *argv[]) {
 
 	debug_print("RT Telem: %s - Length: %d bytes\n", rt_telem_path, (int)sizeof(g_sensor_telemetry));
 
+#ifdef HAS_COSMIC_WATCH
 	/**
 	 * Start a thread to listen to the Cosmic watch.  This will write all received data into
 	 * a file.  This thread runs in the background and is always ready to
@@ -287,11 +313,7 @@ int main(int argc, char *argv[]) {
 		error_print("Could not start the CW2 listen thread.\n");
 	}
 
-//	int thread3_rc = pthread_create( &mic_listen_pthread, NULL, mic_listen_process, (void*) data_folder_path);
-//	if (thread3_rc != EXIT_SUCCESS) {
-//		log_err(g_log_filename, SENSOR_ERR_MIC_FAILURE);
-//		error_print("Could not start the MIC listen thread.\n");
-//	}
+#endif
 
 	/* Now read the sensors until we get an interrupt to exit */
 	time_t now = time(0);
@@ -306,10 +328,13 @@ int main(int argc, char *argv[]) {
 			if (g_state_sensors_period_to_store_wod_in_seconds > 0) { /* Then WOD is enabled */
 				if ((now - last_time_checked_wod) > g_state_sensors_period_to_store_wod_in_seconds) {
 					last_time_checked_wod = now;
-
+#ifdef HAS_COSMIC_WATCH
 					pthread_mutex_lock(&cw_mutex);
+#endif
 					long size = log_append(wod_telem_path,(unsigned char *)&g_sensor_telemetry, sizeof(g_sensor_telemetry));
+#ifdef HAS_COSMIC_WATCH
 					pthread_mutex_unlock(&cw_mutex);
+#endif
 					if (size < sizeof(g_sensor_telemetry)) {
 						if (g_verbose)
 							printf("ERROR, could not save data to filename: %s\n",g_sensors_wod_telem_path);
@@ -334,12 +359,16 @@ int main(int argc, char *argv[]) {
 				last_time_checked_state_file = now;
 
 				read_sensors(now);
+#ifdef HAS_ULTRASONIC_MIC
 				mic_read_data();
+#endif
 
 				//TODO - some sort of locks here to make sure we get valid data from Muon detectors and wait if it is currently being written.
 
+#ifdef HAS_COSMIC_WATCH
 				/* Put in latest data from the CosmicWatches if we have it */
 				pthread_mutex_lock(&cw_mutex);
+
 				if (g_state_sensors_cosmic_watch_enabled) {
 					if (strlen(cw_raw_data.master_slave) != 0) {
 						g_sensor_telemetry.cw_raw_valid = SENSOR_ON;
@@ -369,9 +398,11 @@ int main(int argc, char *argv[]) {
 					g_sensor_telemetry.cw_coincident_rate = 0;
 					g_sensor_telemetry.cw_raw_rate = 0;
 				}
-
+#endif
 				save_rt_telem(tmp_filename, rt_telem_path);
+#ifdef HAS_COSMIC_WATCH
 				pthread_mutex_unlock(&cw_mutex);
+#endif
 			} /* if time to sample sensors */
 		} /* if sensors enabled */
 
@@ -409,8 +440,10 @@ void help(void) {
 void signal_exit (int sig) {
 	if(g_verbose && sig > 0)
 		printf (" Signal received, exiting ...\n");
+#ifdef HAS_WAVESHARE_SENSE_HAT
 	TCS34087_Close();
 	imuClose();
+#endif
 	sensors_gpio_close();
 	lguSleep(2/1000);
 	log_alog1(INFO_LOG, g_log_filename, ALOG_SENSORS_SHUTDOWN, 0);
@@ -459,6 +492,7 @@ int read_sensors(uint32_t now) {
 	g_sensor_telemetry.timestamp = now;
 	/* Read the PI sensors */
 
+#ifdef HAS_GAS_SENSORS
 	short val;
 	int rc;
 	if (g_state_sensors_methane_enabled) {
@@ -501,7 +535,7 @@ int read_sensors(uint32_t now) {
 		g_sensor_telemetry.air_quality = 0;
 		g_sensor_telemetry.air_q_sensor_valid = SENSOR_OFF;
 	}
-
+#endif
 //	rc = adc_read(ADC_BUS_V_CHAN, &val);
 //	if (rc != EXIT_SUCCESS) {
 //		if (g_verbose)
@@ -512,6 +546,12 @@ int read_sensors(uint32_t now) {
 //			printf("PI Bus (5V): %0.0fmV,",2*val*0.125);
 //	}
 
+#ifdef HAS_PI_SENSE_HAT
+
+#endif
+
+
+#ifdef HAS_WAVESHARE_SENSE_HAT
 	/* Read Waveshare C board sensors */
 	/* Read the SHTC3 temp and humidity */
 	if (g_state_sensors_temp_humidity_enabled) {
@@ -603,7 +643,9 @@ int read_sensors(uint32_t now) {
 	} else {
 		g_sensor_telemetry.ImuValid = SENSOR_OFF;
 	} /* if g_state_sensors_imu_enabled */
+#endif
 
+#ifdef HAS_GAS_SENSORS
 	/* Read the xensiv CO2 sensor
 	 * Note that this is dependant on the pressure reading */
 	if (g_state_sensors_co2_enabled) {
@@ -735,6 +777,9 @@ int read_sensors(uint32_t now) {
 		}
 	}
 
+#endif
+
+#ifdef HAS_WAVESHARE_SENSE_HAT
 	/* Read the color sensor */
 	if (g_state_sensors_color_enabled) {
 		if (tcs_status) {
@@ -759,6 +804,8 @@ int read_sensors(uint32_t now) {
 		g_sensor_telemetry.light_level = 0;
 		g_sensor_telemetry.light_RGB = 0;
 	}
+#endif
+
 	return EXIT_SUCCESS;
 }
 
