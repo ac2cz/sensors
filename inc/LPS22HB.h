@@ -37,4 +37,4 @@
 int LPS22HB_read(int *pressure, short *temperature);
 
 #endif 
-
+#endif

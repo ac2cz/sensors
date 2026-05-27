@@ -50,7 +50,7 @@
 
 #ifdef HAS_PI_SENSE_HAT
 
-
+#ifdef FIX_THIS_CODE
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -243,5 +243,5 @@ int get_lps25hb_temperature(uint16_t *raw_temperature) {
 
     return rc;
 }
-
+#endif
 #endif /* has_pi_sense_hat */

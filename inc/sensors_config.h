@@ -28,14 +28,6 @@
 
 #define VERSION __DATE__ " ARISS Sensors - Version 0.1a"
 
-/* Change these if they are present */
-#define NO_COSMIC_WATCH // HAS_COSMIC_WATCH
-#define NO_ULTRASONIC_MIC // HAS_ULTRASONIC_MIC
-#define NO_GAS_SENSORS // HAS_GAS_SENSORS
-#define NO_WAVESHARE_SENSE_HAT // HAS_WAVESHARE_SENSE_HAT
-#define HAS_PI_SENSE_HAT
-
-
 #define SENSOR_OFF 0
 #define SENSOR_ON 1
 #define SENSOR_ERR 2
